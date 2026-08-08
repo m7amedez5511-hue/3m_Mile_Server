@@ -1,0 +1,50 @@
+services:
+  3mMile-app:
+    container_name: 3mMile-app
+    image: 3mmile-app:prod
+    build:
+      context: .
+      target: production
+    expose:
+      - "3000"
+    volumes:
+      - ./public/uploads:/app/public/uploads
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - RUN_DB_SEED=${RUN_DB_SEED:-false}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+    restart: always
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  nginx:
+    container_name: 3mMile-nginx
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_SERVER_NAME: ${API_SERVER_NAME:-logiapi.slash.sa}
+      API_UPSTREAM_HOST: ${API_UPSTREAM_HOST:-3mMile-app}
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      3mMile-app:
+        condition: service_started
+    restart: always
+
+  mongo:
+    ports: !reset []
+  redis:
+    ports: !reset []
+
+  mongo-express:
+    profiles:
+      - dev-tools

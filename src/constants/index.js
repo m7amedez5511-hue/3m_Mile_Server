@@ -1,0 +1,53 @@
+import { DATABASE_INDEXES } from './indexes.constant.js';
+import { SERVICE_CODE } from './services.constant.js';
+
+export default {
+  LOGIN_ATTEMPT_LIMIT: 4,
+  PAGINATION: {
+    LIMIT: 10,
+    PAGE: 1
+  },
+  SESSION_CONFIG: {
+    EXPIRES_IN: 60 * 60 * 1000
+  },
+  OTP_CONFIG: {
+    LENGTH: 6,
+    EXPIRATION_MINUTES: 5,
+    MAX_SEND_PER_DAY: 20,
+    MAX_INVALID_ATTEMPTS: 3,
+    STATIC_VALUE: 911119,
+    RESEND_VALUE: 922229,
+    FORGET_PASSWORD: 933339
+  },
+  QUIZ_CONFIG: {
+    QUESTIONS_LIMIT: 5,
+    PASS: 3
+  },
+  LANG: {
+    DEFAULT: 'en',
+    SUPPORTED: ['en', 'ar', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'zh']
+  },
+  GALLERY: {
+    MAX_IMAGES_PER_PET: 10,
+    MAX_IMAGES_PER_PSP: 15,
+    MAX_ASSET_SIZE: 4 * 1024 * 1024, //4MB
+  },
+  JWT_CONFIG: {
+    ACCESS_TOKEN_EXPIRE_IN: '7d',
+    REFRESH_TOKEN_EXPIRE_IN: '1y',
+  },
+  BATCH:{
+    DISPATCH_BATCH_SIZE: 1000,
+    SETTLEMENT_BATCH_SIZE : 1000
+  },
+  LIMIT_PROCESS: {
+    COMPANY_SERVICE_CONCURRENCY: 3,
+    DRIVER_CONCURRENCY : 10,
+    TRANSACTION_CONCURRENCY: 200,
+    DISPATCH_CONCURRENCY: 10,
+    SETTLEMENT_CONCURRENCY: 10
+  },
+  DATABASE_INDEXES,
+  SERVICE_CODE,
+  ASYNC_AGENT: false
+};

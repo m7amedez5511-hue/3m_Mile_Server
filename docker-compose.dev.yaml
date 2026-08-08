@@ -1,6 +1,8 @@
 services:
   3mMile-app:
     image: 3mmile-app:dev
+    env_file:
+      - .env
     volumes:
       - ./src:/app/src
       - ./public/uploads:/app/public/uploads
@@ -9,6 +11,11 @@ services:
       target: development
     ports:
       - "3001:3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       - RUN_DB_SEED=true
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:8080}

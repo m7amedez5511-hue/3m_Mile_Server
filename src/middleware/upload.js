@@ -2,6 +2,7 @@ import multer from 'multer';
 import { createAppError } from '../utils/createAppError.js';
 import path from 'path';
 import fs from 'fs';
+import CONSTANTS from '../constants/index.js';
 
 const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -39,7 +40,7 @@ const filterMulter = (req, file, cb) => {
 const upload = multer({
   storage: diskStorage,
   fileFilter: filterMulter,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: CONSTANTS.GALLERY.MAX_ASSET_SIZE }, // متسقة مع باقي التطبيق (4MB)
 });
 
 export default upload;

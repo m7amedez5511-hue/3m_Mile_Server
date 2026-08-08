@@ -27,7 +27,6 @@ services:
     image: nginx:1.27-alpine
     ports:
       - "80:80"
-      - "443:443"
     environment:
       API_SERVER_NAME: ${API_SERVER_NAME:-logiapi.slash.sa}
       API_UPSTREAM_HOST: ${API_UPSTREAM_HOST:-3mMile-app}

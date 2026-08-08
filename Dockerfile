@@ -20,5 +20,10 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm install --omit=dev
 COPY . .
+
+# Run as a non-root user (security hardening)
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 3000
 CMD ["npm", "start"]

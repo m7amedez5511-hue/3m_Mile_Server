@@ -1,9 +1,9 @@
 import { customAlphabet } from 'nanoid'
 
- export const generateUniqueString = (length) => {
+const ALPHABET =
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
-    const nanoid = customAlphabet('A–Za–z0–9', length || 13)
-    return nanoid()
-}   
-
-
+export const generateUniqueString = (length) => {
+  const nanoid = customAlphabet(ALPHABET, length || 13)
+  return nanoid()
+}

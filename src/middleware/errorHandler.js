@@ -1,4 +1,3 @@
-import config from 'config';
 import { logger } from '../utils/winston.js';
 import { ERROR_TYPES, defaultMessages } from '../constants/errors.constant.js';
 

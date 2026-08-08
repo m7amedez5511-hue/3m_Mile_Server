@@ -42,7 +42,7 @@ app.use("/public", express.static(path.join(process.cwd(), "public")));
 app.get("/", (req, res) => res.send("3mMile API Server is running..."));
 
 // API Routes (Includes /docs, /health, /v1/client)
-app.use("/api", routes);
+app.use("/api/v1", routes);
 
 // Handle 404 - Not Found
 app.use(notFoundHandler);

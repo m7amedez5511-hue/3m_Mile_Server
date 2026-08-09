@@ -3,6 +3,7 @@ import path from "path";
 import cors from "cors";
 import morgan from "morgan";
 import { helmetMiddleware } from "../utils/security.js";
+import { initCloudinary } from "../utils/Cloudinary.config.js";
 import routes from "../routes/index.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
 import { apiLimiter } from "../middleware/rateLimiter.js";
@@ -12,6 +13,10 @@ const app = express();
 
 const environment = process.env.NODE_ENV || "development";
 const isDevelopment = ["dev", "development", "uat"].includes(environment);
+
+// Required so Cloudinary uploads (categories, products, etc.) work —
+// previously never called, so cloudinary.uploader calls would fail.
+initCloudinary();
 
 // Required when running behind nginx reverse proxy (X-Forwarded-* headers).
 app.set("trust proxy", 1);

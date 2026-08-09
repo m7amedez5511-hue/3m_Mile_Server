@@ -1,5 +1,9 @@
+import bcrypt from 'bcryptjs';
 import userModel from "../DB/models/user.model.js";
+import crudService from './crud.service.js';
+import { createAppError } from '../utils/createAppError.js';
 
+const userCrud = crudService('User');
 
 /**
  * Fetch a user by id.
@@ -19,4 +23,44 @@ export const getUserByEmail = async (email, lean = true) => {
 export const createUser = async (data) => {
   const user = await userModel.create(data);
   return user.toObject();
+};
+
+export const listUsers = async ({ page = 1, limit = 10 } = {}) => {
+  return userCrud.findAndCountAll(
+    { isDeleted: false },
+    { page, limit, sort: { createdAt: -1 }, select: '-password', populate: [{ path: 'role' }] },
+  );
+};
+
+export const getUserProfile = async (id) => {
+  const user = await getUser(id, true);
+  if (!user || user.isDeleted) {
+    throw createAppError(404, 'user_not_found');
+  }
+  return user;
+};
+
+export const updateUser = async (id, updateData) => {
+  const existing = await userCrud.findByPk(id);
+  if (!existing || existing.isDeleted) {
+    throw createAppError(404, 'user_not_found');
+  }
+
+  const data = { ...updateData };
+  if (data.password) {
+    data.password = await bcrypt.hash(data.password, 12);
+    data.passwordChangedAt = new Date();
+  }
+
+  const updated = await userCrud.findOneAndUpdate({ _id: id }, data);
+  if (updated) delete updated.password;
+  return updated;
+};
+
+export const deleteUser = async (id) => {
+  const existing = await userCrud.findByPk(id);
+  if (!existing || existing.isDeleted) {
+    throw createAppError(404, 'user_not_found');
+  }
+  return userCrud.softDelete({ _id: id });
 };

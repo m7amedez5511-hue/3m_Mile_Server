@@ -1,11 +1,6 @@
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { sendResponse } from '../utils/response.js';
-import { registerUser, loginUser } from '../services/auth.service.js';
-
-export const register = asyncHandler(async (req, res) => {
-  const user = await registerUser(req.body);
-  return sendResponse(res, 201, 'user_registered_successfully', user);
-});
+import {  loginUser } from '../services/auth.service.js';
 
 export const login = asyncHandler(async (req, res) => {
   const { user, accessToken, refreshToken } = await loginUser(req.body);

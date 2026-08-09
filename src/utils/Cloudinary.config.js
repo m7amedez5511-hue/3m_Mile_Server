@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
-import { logger } from "./winston";
+import { logger } from "./winston.js";
 
 export const initCloudinary = () => {
     cloudinary.config({
@@ -113,4 +113,4 @@ export const getImageInfo = async (publicId) => {
 };
 
 
-export default cloudinary;   
+export default cloudinary;

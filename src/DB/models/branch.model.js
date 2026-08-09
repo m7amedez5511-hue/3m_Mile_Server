@@ -1,19 +1,30 @@
 import mongoose from 'mongoose';
 
+// "The Branch"
 const branchSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    address: { type: String },
-    phone: { type: String },
+    city: { type: String, default: '' },
+    address: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    whatsapp: { type: String, default: '' },
     location: {
       lat: { type: Number },
       lng: { type: Number },
     },
-    workingHours: { type: String },
+    mapUrl: { type: String, default: '' }, // google maps link
+    workingHours: { type: String, default: '' },
+    image: { type: String, default: null },
+    imagePublicId: { type: String, default: null },
+    order: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
+
+// indexes for common query patterns (listBranches: filter by city/isDeleted, sort by order/createdAt)
+branchSchema.index({ isDeleted: 1, order: 1, createdAt: -1 });
+branchSchema.index({ city: 1 });
 
 export default mongoose.models.Branch || mongoose.model('Branch', branchSchema);

@@ -9,12 +9,8 @@ import {
 } from '../services/category.service.js';
 
 export const getCategories = asyncHandler(async (req, res) => {
-  const { page, limit, search } = req.query;
-  const result = await listCategories({
-    page: Number(page) || 1,
-    limit: Number(limit) || 10,
-    search,
-  });
+  const { page, limit, search, type } = req.query;
+  const result = await listCategories({ page: Number(page) || 1, limit: Number(limit) || 10, search, type });
   return sendResponse(res, 200, 'categories_fetched', result);
 });
 
@@ -24,16 +20,16 @@ export const getCategory = asyncHandler(async (req, res) => {
 });
 
 export const createCategory = asyncHandler(async (req, res) => {
-  const category = await createCategoryService(req.body, req.uploadedFile);
+  const category = await createCategoryService(req);
   return sendResponse(res, 201, 'category_created', category);
 });
 
 export const updateCategory = asyncHandler(async (req, res) => {
-  const category = await updateCategoryService(req.params.id, req.body, req.uploadedFile);
+  const category = await updateCategoryService(req.params.id, req);
   return sendResponse(res, 200, 'category_updated', category);
 });
 
 export const deleteCategory = asyncHandler(async (req, res) => {
-  await deleteCategoryService(req.params.id);
+  await deleteCategoryService(req.params.id, req);
   return sendResponse(res, 200, 'category_deleted', null);
 });

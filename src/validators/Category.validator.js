@@ -8,10 +8,14 @@ const booleanish = z
 
 export const createCategorySchema = z.object({
   name: z.string().min(2).max(150),
+  type: z.enum(['product', 'service']).optional(),
+  order: z.coerce.number().int().optional(),
   isActive: booleanish,
 });
 
 export const updateCategorySchema = z.object({
   name: z.string().min(2).max(150).optional(),
+  type: z.enum(['product', 'service']).optional(),
+  order: z.coerce.number().int().optional(),
   isActive: booleanish,
 });

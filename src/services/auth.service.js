@@ -1,13 +1,11 @@
 import bcrypt from 'bcryptjs';
-import { getUserByEmail, createUser } from './user.service.js';
+import { getUserByEmail } from './user.service.js';
 import { signJwt } from '../utils/jwt.utils.js';
 import { createAppError } from '../utils/createAppError.js';
-import crudService from './crud.service.js';
-
-const roleCrud = crudService('Role');
-
-
-export const loginUser = async ({ email, password }) => {
+import { logAudit } from '../utils/auditLogger.js';
+// Service for handling user authentication (login, logout, token refresh, etc.)
+export const loginUser = async ({ email, password }, req) => {
+  //1 check if user exists
   const user = await getUserByEmail(email, false); // need full doc for select('+password')
   if (!user) {
     throw createAppError(401, 'invalid_credentials');
@@ -16,32 +14,24 @@ export const loginUser = async ({ email, password }) => {
   if (!user.isActive || user.isDeleted) {
     throw createAppError(401, 'account_disabled');
   }
-
+  //2 check if password is correct
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     throw createAppError(401, 'invalid_credentials');
   }
 
-  // The dashboard is Admin-only — everything else in the app is public,
-  // so any account without the Admin role is rejected here even with
-  // correct credentials.
+    //3 check if user is admin
   if (user.role?.name !== 'Admin') {
     throw createAppError(403, 'admin_access_only');
   }
-
+  //4 generate access and refresh tokens
   const accessToken = await signJwt(user._id, 'ACCESS_TOKEN_SECRET', 'user');
   const refreshToken = await signJwt(user._id, 'REFRESH_TOKEN_SECRET', 'user');
-
+  //5 log audit
   const userObj = user.toObject ? user.toObject() : user;
   delete userObj.password;
-  //AUDIT LOG
-  const auditCrud = crudService('AuditLog');
-  await auditCrud.create({
-    user: user._id,
-    action: 'LOGIN',
-    resource: 'User',
-    details: { email },
-    ip: req.ip,
-  });
+
+  logAudit({ userId: user._id, action: 'LOGIN', resource: 'User', details: { email }, ip: req?.ip });
+  //6 return user object and tokens
   return { user: userObj, accessToken, refreshToken };
 };

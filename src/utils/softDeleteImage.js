@@ -1,5 +1,5 @@
 import { deleteImage as deleteCloudinaryImage } from './Cloudinary.config.js';
-import { logger } from './logger.js';
+import { logger } from './winston.js';
 
 // centralised, non-throwing Cloudinary cleanup so every call site
 // behaves the same way (awaited + logged) instead of silently

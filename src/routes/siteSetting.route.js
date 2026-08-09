@@ -18,8 +18,8 @@ router.put(
   restrictTo('settings:write'),
   uploaders.bannerImage.single('aboutImage'),
   handleMulterError,
+  validate(updateSiteSettingSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/settings'),
-  validate(updateSiteSettingSchema),
   updateSettings,
 );
 

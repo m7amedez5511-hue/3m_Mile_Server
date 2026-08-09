@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-      // "The Partner" — e.g. "Toyota", "Honda", "Nissan", etc.
+// "The Partner" — e.g. "Toyota", "Honda", "Nissan", etc.
 const partnerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -12,5 +12,8 @@ const partnerSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// index for common query pattern (listPartners: filter by isDeleted, sort by order/createdAt)
+partnerSchema.index({ isDeleted: 1, order: 1, createdAt: -1 });
 
 export default mongoose.models.Partner || mongoose.model('Partner', partnerSchema);

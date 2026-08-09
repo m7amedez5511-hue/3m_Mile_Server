@@ -25,8 +25,8 @@ router.post(
   restrictTo('product:write'),
   uploaders.productImages.array('images', 8),
   handleMulterError,
+  validate(createProductSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/products'),
-  validate(createProductSchema),
   createProduct,
 );
 
@@ -36,8 +36,8 @@ router.put(
   restrictTo('product:write'),
   uploaders.productImages.array('images', 8),
   handleMulterError,
+  validate(updateProductSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/products'),
-  validate(updateProductSchema),
   updateProduct,
 );
 

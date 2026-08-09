@@ -25,8 +25,8 @@ router.post(
   restrictTo('partner:write'),
   uploaders.categoryImage.single('logo'),
   handleMulterError,
+  validate(createPartnerSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/partners'),
-  validate(createPartnerSchema),
   createPartner,
 );
 
@@ -36,8 +36,8 @@ router.put(
   restrictTo('partner:write'),
   uploaders.categoryImage.single('logo'),
   handleMulterError,
+  validate(updatePartnerSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/partners'),
-  validate(updatePartnerSchema),
   updatePartner,
 );
 

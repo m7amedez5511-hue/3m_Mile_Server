@@ -25,8 +25,8 @@ router.post(
   restrictTo('service:write'),
   uploaders.productImage.single('image'),
   handleMulterError,
+  validate(createServiceSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/services'),
-  validate(createServiceSchema),
   createService,
 );
 
@@ -36,12 +36,13 @@ router.put(
   restrictTo('service:write'),
   uploaders.productImage.single('image'),
   handleMulterError,
+  validate(updateServiceSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/services'),
-  validate(updateServiceSchema),
   updateService,
 );
 
 // Separate endpoint for the work gallery attached to a service
+// (no body schema to validate — this route only accepts image files)
 router.put(
   '/:id/gallery',
   isAuthorized,

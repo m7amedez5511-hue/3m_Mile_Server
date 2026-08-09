@@ -25,8 +25,8 @@ router.post(
   restrictTo('package:write'),
   uploaders.bannerImage.single('image'),
   handleMulterError,
+  validate(createPackageSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/packages'),
-  validate(createPackageSchema),
   createPackage,
 );
 
@@ -36,8 +36,8 @@ router.put(
   restrictTo('package:write'),
   uploaders.bannerImage.single('image'),
   handleMulterError,
+  validate(updatePackageSchema), // validate body first, before hitting Cloudinary
   uploadToCloudinary('3mmile/packages'),
-  validate(updatePackageSchema),
   updatePackage,
 );
 

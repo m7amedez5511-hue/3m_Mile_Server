@@ -1,11 +1,23 @@
 import { z } from 'zod';
 
+// multipart/form-data always arrives as strings, so booleans are coerced
 const booleanish = z
   .union([z.boolean(), z.enum(['true', 'false'])])
   .transform((v) => v === true || v === 'true')
   .optional();
 
-export const createPackageSchema = z.object({
+// shared cross-field check: if both dates are provided, endDate must be after startDate
+const endDateAfterStartDate = (data, ctx) => {
+  if (data.startDate && data.endDate && data.endDate <= data.startDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'endDate must be after startDate',
+      path: ['endDate'],
+    });
+  }
+};
+
+const basePackageSchema = z.object({
   title: z.string().min(2).max(200),
   description: z.string().optional(),
   service: z.string().length(24).optional(),
@@ -17,4 +29,8 @@ export const createPackageSchema = z.object({
   isActive: booleanish,
 });
 
-export const updatePackageSchema = createPackageSchema.partial();
+export const createPackageSchema = basePackageSchema.superRefine(endDateAfterStartDate);
+
+// .partial() must run on the base object schema (not on a ZodEffects
+// from .superRefine), so the refine is re-applied after partial() here
+export const updatePackageSchema = basePackageSchema.partial().superRefine(endDateAfterStartDate);

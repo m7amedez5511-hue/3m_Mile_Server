@@ -18,12 +18,10 @@ const run = async () => {
     (await Role.create({
       name: 'Admin',
       permissions: [
+        
         //product permissions
         { permission: { slug: 'product:write', name: 'Manage products' } },
         { permission: { slug: 'product:delete', name: 'Delete products' } },
-        //booking permissions
-        { permission: { slug: 'booking:read', name: 'read bookings' } },
-        { permission: { slug: 'booking:delete', name: 'Delete bookings' } },
         //audit permissions
         { permission: { slug: 'audit:read', name: 'Read audit logs' } },
         //category permissions
@@ -41,6 +39,27 @@ const run = async () => {
         //service permissions
         { permission: { slug: 'service:write', name: 'Manage services' } },
         { permission: { slug: 'service:delete', name: 'Delete services' } },
+        //faq permissions
+        { permission: { slug: 'faq:write', name: 'Manage FAQs' } },
+        { permission: { slug: 'faq:delete', name: 'Delete FAQs' } },
+        //gallery permissions
+        { permission: { slug: 'gallery:write', name: 'Manage gallery' } },
+        { permission: { slug: 'gallery:delete', name: 'Delete gallery' } },
+        //package permissions
+        { permission: { slug: 'package:write', name: 'Manage packages' } },
+        { permission: { slug: 'package:delete', name: 'Delete packages' } },
+        //partner permissions
+        { permission: { slug: 'partner:write', name: 'Manage partners' } },
+        { permission: { slug: 'partner:delete', name: 'Delete partners' } },
+        //product permissions
+        { permission: { slug: 'product:write', name: 'Manage products' } },
+        { permission: { slug: 'product:delete', name: 'Delete products' } },
+        //siteSetting permissions
+        { permission: { slug: 'siteSetting:write', name: 'Manage site settings' } },
+        { permission: { slug: 'siteSetting:delete', name: 'Delete site settings' } },
+        //user permissions
+        { permission: { slug: 'user:write', name: 'Manage users' } },
+        { permission: { slug: 'user:delete', name: 'Delete users' } },
       ],
     }));
 

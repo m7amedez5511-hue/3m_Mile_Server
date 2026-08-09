@@ -1,6 +1,5 @@
 import mongoose from 'mongoose';
 
-
 const packageSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
@@ -19,5 +18,9 @@ const packageSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// indexes for common query patterns (listPackages: filter by isDeleted/isActive, sort by order/createdAt)
+packageSchema.index({ isDeleted: 1, order: 1, createdAt: -1 });
+packageSchema.index({ service: 1 });
 
 export default mongoose.models.Package || mongoose.model('Package', packageSchema);

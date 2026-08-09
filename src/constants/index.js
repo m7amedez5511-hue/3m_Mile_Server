@@ -1,53 +1,36 @@
 import { DATABASE_INDEXES } from './indexes.constant.js';
-import { SERVICE_CODE } from './services.constant.js';
 
 export default {
-  LOGIN_ATTEMPT_LIMIT: 4,
+  LOGIN_ATTEMPT_LIMIT: 5,
   PAGINATION: {
     LIMIT: 10,
-    PAGE: 1
+    PAGE: 1,
+    MAX_LIMIT: 100, // hard cap so nobody can request ?limit=999999
   },
   SESSION_CONFIG: {
-    EXPIRES_IN: 60 * 60 * 1000
+    EXPIRES_IN: 60 * 60 * 1000,
   },
   OTP_CONFIG: {
     LENGTH: 6,
     EXPIRATION_MINUTES: 5,
     MAX_SEND_PER_DAY: 20,
     MAX_INVALID_ATTEMPTS: 3,
-    STATIC_VALUE: 911119,
-    RESEND_VALUE: 922229,
-    FORGET_PASSWORD: 933339
-  },
-  QUIZ_CONFIG: {
-    QUESTIONS_LIMIT: 5,
-    PASS: 3
   },
   LANG: {
-    DEFAULT: 'en',
-    SUPPORTED: ['en', 'ar', 'fr', 'de', 'es', 'it', 'pt', 'ru', 'zh']
+    DEFAULT: 'ar',
+    SUPPORTED: ['ar', 'en'],
   },
   GALLERY: {
-    MAX_IMAGES_PER_PET: 10,
-    MAX_IMAGES_PER_PSP: 15,
-    MAX_ASSET_SIZE: 4 * 1024 * 1024, //4MB
+    MAX_IMAGES_PER_PRODUCT: 8,
+    MAX_ASSET_SIZE: 4 * 1024 * 1024, // 4MB
   },
   JWT_CONFIG: {
-    ACCESS_TOKEN_EXPIRE_IN: '7d',
-    REFRESH_TOKEN_EXPIRE_IN: '1y',
+    ACCESS_TOKEN_EXPIRE_IN: '15m',   // shortened — see security notes in §D
+    REFRESH_TOKEN_EXPIRE_IN: '30d',
   },
-  BATCH:{
-    DISPATCH_BATCH_SIZE: 1000,
-    SETTLEMENT_BATCH_SIZE : 1000
-  },
-  LIMIT_PROCESS: {
-    COMPANY_SERVICE_CONCURRENCY: 3,
-    DRIVER_CONCURRENCY : 10,
-    TRANSACTION_CONCURRENCY: 200,
-    DISPATCH_CONCURRENCY: 10,
-    SETTLEMENT_CONCURRENCY: 10
+  ORDER_CONFIG: {
+    STATUSES: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'],
+    PREFIX: 'ORD',
   },
   DATABASE_INDEXES,
-  SERVICE_CODE,
-  ASYNC_AGENT: false
 };

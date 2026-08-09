@@ -15,5 +15,7 @@ const bookingSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+bookingSchema.index({ branch: 1, date: 1 });
+bookingSchema.index({ status: 1 });
 
 export default mongoose.models.Booking || mongoose.model('Booking', bookingSchema);

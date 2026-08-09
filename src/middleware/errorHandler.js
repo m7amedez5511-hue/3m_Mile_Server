@@ -90,38 +90,9 @@ const isDevelopmentEnv = () => {
  * @returns {string} Error code
  */
 const getErrorCode = (error, status) => {
-  // For Prisma errors
-  if (error.code === 'P2002') {
-    if (error.meta?.target && error.meta.target.length > 0) {
-      const field = Array.isArray(error.meta.target) ? error.meta.target.join('_') : error.meta.target;
-      return `${field}_already_exists`;
-    }
-    // Attempt to parse out of the error message if meta.target is missing
-    if (error.message) {
-      const fieldMatch = error.message.match(/fields?: \(`([^`]+)`\)/i);
-      if (fieldMatch && fieldMatch[1]) {
-        return `${fieldMatch[1].replace(/`/g, '')}_already_exists`;
-      }
-      const constraintMatch = error.message.match(/constraint: ['"`]([^'"`]+)['"`]/i);
-      if (constraintMatch && constraintMatch[1]) {
-        let field = constraintMatch[1];
-        if (field.includes('_')) {
-           const parts = field.split('_');
-           if (parts.length >= 3) field = parts[parts.length - 2]; 
-        }
-        return `${field}_already_exists`;
-      }
-    }
-    return `record_already_exists`;
-  }
+  
 
-  if (error.code === 'P2003') {
-    return 'foreign_key_constraint_failed';
-  }
 
-  if (error.code === 'P2025') {
-    return 'resource_not_found';
-  }
 
   // Joi or Zod validation errors
   if (error.isJoi || error.name === 'ZodError') {

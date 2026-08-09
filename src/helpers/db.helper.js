@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const buildLookupStages = (relations = []) => {
+ export const buildLookupStages = (relations = []) => {
     if (!Array.isArray(relations)) return [];
     const stages = [];
 
@@ -162,7 +162,7 @@ const buildLookupStages = (relations = []) => {
     return stages;
 };
 
-const convertOrderToSort = (order) => {
+ export const convertOrderToSort = (order) => {
     if (!order) return {};
     const sortObj = {};
     if (Array.isArray(order)) {
@@ -181,7 +181,7 @@ const convertOrderToSort = (order) => {
     return sortObj;
 };
 
-const convertFilterToMatch = (filter) => {
+ export const convertFilterToMatch = (filter) => {
     if (!filter || typeof filter !== 'object') return filter;
     const match = {};
     for (const [key, value] of Object.entries(filter)) {
@@ -216,7 +216,7 @@ const convertFilterToMatch = (filter) => {
     return match;
 };
 
-const buildPopulateOptions = (relations) => {
+ export const buildPopulateOptions = (relations) => {
     if (!Array.isArray(relations)) return [];
     return relations.map(relation => {
         if (typeof relation === 'string') return { path: relation };
@@ -249,7 +249,7 @@ const buildPopulateOptions = (relations) => {
     });
 };
 
-const applyPopulateAliasesToDocs = (documents, populateOptions) => {
+ export const applyPopulateAliasesToDocs = (documents, populateOptions) => {
     if (!documents) return documents;
 
     const applyToDocument = (document, pops) => {
@@ -295,10 +295,3 @@ const applyPopulateAliasesToDocs = (documents, populateOptions) => {
         : applyToDocument(documents, populateOptions);
 };
 
-module.exports = {
-    buildLookupStages,
-    buildPopulateOptions,
-    applyPopulateAliasesToDocs,
-    convertFilterToMatch,
-    convertOrderToSort,
-};

@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { helmetMiddleware } from "../utils/security.js";
 import routes from "../routes/index.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
+import { apiLimiter } from "../middleware/rateLimiter.js";
 import dotenv  from "dotenv";
 dotenv.config()
 const app = express();
@@ -49,5 +50,6 @@ app.use(notFoundHandler);
 
 // Global Error Handler
 app.use(errorHandler);
-
+//limit requests to 100 per 15 minutes per IP
+app.use(apiLimiter); 
 export default app;

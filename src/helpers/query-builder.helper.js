@@ -8,8 +8,8 @@ const toUTCDate = (val) => {
     return /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(s + 'T00:00:00.000Z') : new Date(s);
 };
 
-module.exports = {
-    buildQueryPrams: (query, fields, type, collectionField) => {
+
+    export const buildQueryPrams = (query, fields, type, collectionField) => {
         const queryParams = {};
         fields.forEach(field => {
             if (type === 'number') {
@@ -84,10 +84,10 @@ module.exports = {
             }
         });
         return queryParams;
-    },
+    }
 
 
-    buildSortObject: (sortParam) => {
+    export const buildSortObject = (sortParam) => {
         if (!sortParam) return { createdAt: -1 };
         const sortObject = {};
         sortParam.split(',').forEach(field => {
@@ -102,11 +102,11 @@ module.exports = {
             }
         });
         return sortObject;
-    },
+    }
 
-    buildPaginationOptions: (page = 1, limit = 20) => {
+    export const buildPaginationOptions = (page = 1, limit = 20) => {
         const pageNum = Math.max(1, parseInt(page) || 1);
         const limitNum = Math.min(10000, Math.max(1, parseInt(limit) || 20));
         return { skip: (pageNum - 1) * limitNum, limit: limitNum, page: pageNum };
-    },
-};
+    }
+

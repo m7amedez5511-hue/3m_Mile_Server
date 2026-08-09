@@ -1,1 +1,181 @@
 # 3m_Mile_Server
+================================================================
+3mMile Backend API — README
+================================================================
+
+OVERVIEW
+--------
+Node.js + Express + MongoDB (Mongoose) backend API.
+Uses JWT authentication, role/permission-based authorization,
+Zod validation, Winston logging, and Docker for local/dev/prod
+environments. Nginx sits in front of the API as a reverse proxy.
+
+TECH STACK
+----------
+- Runtime:      Node.js 22 (Alpine, via Docker)
+- Framework:    Express 5
+- Database:     MongoDB 7 + Mongoose
+- Cache/Queue:  Redis 8 (configured, not yet wired into business logic)
+- Auth:         JSON Web Tokens (access + refresh)
+- Validation:   Zod
+- Logging:      Winston (+ daily rotate file in production)
+- Security:     Helmet, CORS, express-rate-limit
+- Reverse proxy: Nginx (Alpine)
+- Containerization: Docker + docker-compose (base / dev / prod overlays)
+
+----------------------------------------------------------------
+PROJECT STRUCTURE
+----------------------------------------------------------------
+src/
+  App/app.js              -> Express app setup (middleware, routes mount)
+  server.js                -> Entry point: connects DB, starts server, handles shutdown
+  DB/
+    connection/             -> Mongoose connection logic
+    models/                 -> Mongoose schemas (User, Role, Product, Category,
+                               Service, Branch, Booking, BlogPost, AuditLog, ...)
+  routes/                   -> Express routers, one file per resource
+  controllers/              -> Request handlers (thin, call services)
+  services/                 -> Business logic + DB access (crud.service.js is
+                               a generic reusable CRUD layer over any model)
+  middleware/                -> auth, permission, validation, rate limiting,
+                               file upload, global error handling
+  validators/                -> Zod schemas per resource
+  helpers/                   -> query building, DB aggregation helpers
+  utils/                      -> JWT, logger, response formatter, security, etc.
+  constants/                  -> Central app-wide constants/config
+
+scripts/
+  seed.js                    -> Creates base Admin role + initial admin user
+
+nginx/                        -> Reverse proxy config + SSL placeholder
+Dockerfile                    -> Multi-stage build (development / production)
+start.sh                      -> Container entrypoint (runs seed if enabled,
+                               then starts the server in the right mode)
+docker-compose.yaml            -> Base service definitions
+docker-compose.dev.yaml        -> Local development overrides
+docker-compose.prod.yaml       -> Production overrides
+
+----------------------------------------------------------------
+ENVIRONMENT VARIABLES (.env)
+----------------------------------------------------------------
+Create a `.env` file in the project root (never commit this file).
+Required variables:
+
+  NODE_ENV=development                # development | production | uat
+  PORT=3000
+
+  MONGODB_URI=mongodb://<user>:<pass>@mongo:27017/3mmile?authSource=admin
+  MONGO_USERNAME=your_mongo_root_user
+  MONGO_PASSWORD=your_mongo_root_password
+
+  REDIS_URL=redis://redis:6379
+
+  ACCESS_TOKEN_SECRET=change_this_to_a_long_random_secret
+  REFRESH_TOKEN_SECRET=change_this_to_a_different_long_random_secret
+  TOKEN_PREFIX=Bearer
+
+  API_PUBLIC_URL=http://localhost:8082      # used to build uploaded-file URLs
+  CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+
+  API_SERVER_NAME=localhost                 # used by nginx template
+  API_UPSTREAM_HOST=3mMile-app               # used by nginx template
+
+  RUN_DB_SEED=true                           # set true only for dev/staging
+  SEED_ADMIN_EMAIL=admin@example.com
+  SEED_ADMIN_PASSWORD=ChangeMe123!
+
+  MONGO_EXPRESS_USERNAME=admin               # only needed if using dev-tools profile
+  MONGO_EXPRESS_PASSWORD=admin
+
+----------------------------------------------------------------
+RUNNING LOCALLY (WITHOUT DOCKER)
+----------------------------------------------------------------
+1. Install dependencies:
+     npm install
+
+2. Make sure MongoDB and Redis are running locally (or point
+   MONGODB_URI / REDIS_URL at remote instances).
+
+3. (Optional) Seed initial data:
+     node scripts/seed.js
+
+4. Start in dev mode (auto-restart on file changes):
+     npm run dev
+
+5. Start in production mode:
+     npm start
+
+The API will be available at:  http://localhost:3000/api/v1
+Health check:                   http://localhost:3000/api/v1/health
+
+----------------------------------------------------------------
+RUNNING WITH DOCKER (RECOMMENDED)
+----------------------------------------------------------------
+Development (hot-reload, exposed dev ports):
+
+    docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up --build
+
+  - API (via nginx):     http://localhost:8082
+  - API (direct, dev):   http://localhost:3001
+  - Mongo Express (UI):  http://localhost:8081   (only if --profile dev-tools)
+  - MongoDB exposed on:  localhost:27018
+  - Redis exposed on:    localhost:6380
+
+Production:
+
+    docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up --build -d
+
+  - API (via nginx only): http://<server-ip>  (port 80)
+  - MongoDB/Redis are NOT exposed to the host in production.
+
+To stop:
+    docker compose -f docker-compose.yaml -f docker-compose.dev.yaml down
+
+----------------------------------------------------------------
+SEEDING THE DATABASE
+----------------------------------------------------------------
+scripts/seed.js creates:
+  - An "Admin" role with a starter set of permissions
+  - One admin user (email/password from SEED_ADMIN_EMAIL /
+    SEED_ADMIN_PASSWORD env vars, or a random generated password
+    printed once to the console if not set)
+
+The script is idempotent — running it multiple times will not
+create duplicates.
+
+Run manually:
+    node scripts/seed.js
+
+Run inside a running container:
+    docker compose exec 3mMile-app node scripts/seed.js
+
+Automatic run on container start:
+    Set RUN_DB_SEED=true in your .env — start.sh will run the seed
+    automatically before starting the server. Recommended for local/
+    dev/staging ONLY. Never enable this in production; run the seed
+    manually, once, with real admin credentials instead.
+
+----------------------------------------------------------------
+API DOCUMENTATION
+----------------------------------------------------------------
+See postman.json in the project root — import it directly into
+Postman (File > Import) to get a ready-made collection of every
+current endpoint, with example request bodies and a {{baseUrl}}
+variable you can point at local/dev/staging/prod.
+
+----------------------------------------------------------------
+AVAILABLE NPM SCRIPTS
+----------------------------------------------------------------
+  npm start        Start the server (production mode)
+  npm run dev       Start the server with nodemon (auto-restart on changes)
+  npm test          (placeholder — wire up Jest before relying on this)
+
+----------------------------------------------------------------
+NOTES / KNOWN GAPS (see full audit report for details)
+----------------------------------------------------------------
+- Product/Category/Service/Branch/Booking/BlogPost CRUD endpoints
+  are not implemented yet — only Auth and Audit routes exist so far.
+- No Order/Cart/Review/Coupon models yet.
+- Redis is configured in docker-compose but not yet used by the app.
+- Automated tests are not set up yet (npm test is a placeholder).
+================================================================

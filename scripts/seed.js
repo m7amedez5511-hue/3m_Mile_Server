@@ -1,75 +1,44 @@
-// scripts/seed.js
-// Run with: node scripts/seed.js
-// Purpose: idempotent seed for local/dev/staging — creates the "Admin" role
-// and one admin user so you can log in and start managing the system.
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import Role from '../src/DB/models/role.model.js';
 import User from '../src/DB/models/user.model.js';
+import { buildFullPermissionSet } from '../src/constants/permissions.constant.js';
 
 const run = async () => {
+  //1. Connect to the database
   await mongoose.connect(process.env.MONGODB_URI);
   console.log('Connected for seeding.');
-
+  //2. Create the Admin role if it doesn't exist, or reuse it if it does.
   const [adminRole] = await Role.find({ name: 'Admin' }).lean();
   const role =
     adminRole ||
     (await Role.create({
       name: 'Admin',
-      permissions: [
-        
-        //product permissions
-        { permission: { slug: 'product:write', name: 'Manage products' } },
-        { permission: { slug: 'product:delete', name: 'Delete products' } },
-        //audit permissions
-        { permission: { slug: 'audit:read', name: 'Read audit logs' } },
-        //category permissions
-        { permission: { slug: 'category:write', name: 'Manage categories' } },
-        { permission: { slug: 'category:delete', name: 'Delete categories' } },
-        //role permissions
-        { permission: { slug: 'role:write', name: 'Manage roles' } },
-        { permission: { slug: 'role:delete', name: 'Delete roles' } },
-        //blogPost permissions
-        { permission: { slug: 'blogPost:write', name: 'Manage blog posts' } },
-        { permission: { slug: 'blogPost:delete', name: 'Delete blog posts' } },
-        //branch permissions
-        { permission: { slug: 'branch:write', name: 'Manage branches' } },
-        { permission: { slug: 'branch:delete', name: 'Delete branches' } },
-        //service permissions
-        { permission: { slug: 'service:write', name: 'Manage services' } },
-        { permission: { slug: 'service:delete', name: 'Delete services' } },
-        //faq permissions
-        { permission: { slug: 'faq:write', name: 'Manage FAQs' } },
-        { permission: { slug: 'faq:delete', name: 'Delete FAQs' } },
-        //gallery permissions
-        { permission: { slug: 'gallery:write', name: 'Manage gallery' } },
-        { permission: { slug: 'gallery:delete', name: 'Delete gallery' } },
-        //package permissions
-        { permission: { slug: 'package:write', name: 'Manage packages' } },
-        { permission: { slug: 'package:delete', name: 'Delete packages' } },
-        //partner permissions
-        { permission: { slug: 'partner:write', name: 'Manage partners' } },
-        { permission: { slug: 'partner:delete', name: 'Delete partners' } },
-        //product permissions
-        { permission: { slug: 'product:write', name: 'Manage products' } },
-        { permission: { slug: 'product:delete', name: 'Delete products' } },
-        //siteSetting permissions
-        { permission: { slug: 'siteSetting:write', name: 'Manage site settings' } },
-        { permission: { slug: 'siteSetting:delete', name: 'Delete site settings' } },
-        //user permissions
-        { permission: { slug: 'user:write', name: 'Manage users' } },
-        { permission: { slug: 'user:delete', name: 'Delete users' } },
-      ],
+      permissions: buildFullPermissionSet(),
+      isSystem: true,
     }));
-
+    //3. Create the Admin user if it doesn't exist, or reuse it if it does.
+  if (adminRole) {
+    console.log('Admin role already exists — reusing it.');
+  } else {
+    console.log('Admin role created with full permission set.');
+  }
+  //4. Create the Admin user if it doesn't exist, or reuse it if it does.
   const email = process.env.SEED_ADMIN_EMAIL || 'super.admin@3m.mile.com';
   const existing = await User.findOne({ email });
-
+  //5. If the admin user exists but has no role, attach the role to it.
   if (existing) {
     console.log(`Admin user already exists: ${email}`);
+    // Edge case: admin exists but was somehow left without a role — repair it.
+    if (!existing.role) {
+      await User.updateOne({ _id: existing._id }, { role: role._id });
+      console.log('Attached missing role to existing admin user.');
+    }
   } else {
+    //6. Create the admin user with a default password if it doesn't exist.
     const password = process.env.SEED_ADMIN_PASSWORD || '3mMile2026@';
+    // Hash the password before saving it to the database.
     const hashed = await bcrypt.hash(password, 12);
     await User.create({
       fullName: 'Super Admin',
@@ -77,13 +46,14 @@ const run = async () => {
       password: hashed,
       role: role._id,
     });
-    console.log(`Admin created: ${email} / ${password} — CHANGE THIS PASSWORD IMMEDIATELY.`);
+    console.log(`Admin created: ${email} — CHANGE THIS PASSWORD IMMEDIATELY.`);
   }
-
+//7. Disconnect from the database and exit the process.
+  console.log('Seed complete: exactly one Admin role, exactly one admin user.');
   await mongoose.disconnect();
   process.exit(0);
 };
-
+// Run the seed script and handle any errors that occur during execution.
 run().catch((err) => {
   console.error('Seed failed:', err);
   process.exit(1);

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./DB/models/index.js";
 import app from "./App/app.js";
 
 import { registerGracefulShutdown } from "./lib/lifecycle.js";

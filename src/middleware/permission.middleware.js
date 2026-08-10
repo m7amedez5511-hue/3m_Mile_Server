@@ -1,17 +1,18 @@
 import { createAppError } from "../utils/createAppError.js";
 import { asyncHandler } from "./errorHandler.js";
 
-
 export const restrictTo = (requiredPermission) => {
   return asyncHandler(async (req, res, next) => {
-    // 1) Get permissions from user object attached by isAuthorized
-    const userPermissions = req.user?.role?.permissions || [];
+    // System Administrators bypass granular permission checks entirely
+    if (req.user?.role?.name === 'Admin') {
+      return next();
+    }
 
-    // 2) Check if user has the required permission slug
+    const userPermissions = req.user?.role?.permissions || [];
     const hasPermission = userPermissions.some(
       (rp) => rp.permission?.slug === requiredPermission
     );
-
+    console.log('User Permissions:', userPermissions.map(p => p.permission?.slug));
     if (!hasPermission) {
       throw createAppError(403, "user_not_authorized");
     }

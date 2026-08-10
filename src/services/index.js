@@ -11,3 +11,4 @@ export * from './galleryItem.service.js';
 export * from './partner.service.js';
 export * from './faq.service.js';
 export * from './siteSetting.service.js';
+export * from './role.service.js';

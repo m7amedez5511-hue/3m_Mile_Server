@@ -2,7 +2,10 @@ import mongoose from 'mongoose';
 
 const roleSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, unique: true },
+    // Only one role name is allowed in this system — the sole
+    // System Administrator role. Enforced at both the schema level
+    // (enum) and the service level (single-document constraint).
+    name: { type: String, required: true, unique: true, enum: ['Admin'] },
     permissions: [
       {
         permission: {
@@ -11,6 +14,8 @@ const roleSchema = new mongoose.Schema(
         },
       },
     ],
+    // Prevents this role from ever being deleted via the API.
+    isSystem: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

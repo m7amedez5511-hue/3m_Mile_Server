@@ -62,5 +62,10 @@ export const deleteUser = async (id) => {
   if (!existing || existing.isDeleted) {
     throw createAppError(404, 'user_not_found');
   }
+  // Never allow the sole System Administrator account to be removed.
+  const adminUserCount = await userCrud.count({ isDeleted: false });
+  if (adminUserCount <= 1) {
+    throw createAppError(403, 'cannot_delete_last_admin_user');
+  }
   return userCrud.softDelete({ _id: id });
 };

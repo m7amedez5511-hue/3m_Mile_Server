@@ -12,7 +12,7 @@ import galleryRoutes from './galleryItem.route.js';
 import partnerRoutes from './partner.route.js';
 import faqRoutes from './faq.route.js';
 import siteSettingRoutes from './siteSetting.route.js';
-
+import roleRoutes from './role.route.js';
 const router = Router();
 
 // Health check (matched by nginx location /api/health)
@@ -33,5 +33,5 @@ router.use('/gallery', galleryRoutes);
 router.use('/partners', partnerRoutes);
 router.use('/faqs', faqRoutes);
 router.use('/settings', siteSettingRoutes);
-
+router.use('/roles', roleRoutes);
 export default router;

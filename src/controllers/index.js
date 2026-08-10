@@ -11,3 +11,4 @@ export * from './galleryItem.controller.js';
 export * from './partner.controller.js';
 export * from './faq.controller.js';
 export * from './siteSetting.controller.js';
+export * from './role.controller.js';

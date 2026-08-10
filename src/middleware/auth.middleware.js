@@ -32,7 +32,7 @@ export const isAuthorized = asyncHandler(async (req, res, next) => {
   }
 
   // 4. Find and validate user
-  const user = await getUser(decodedToken.aud,false);
+  const user = await getUser(decodedToken.aud, true);
 
   // If user not found, token is invalid
   if (!user) {

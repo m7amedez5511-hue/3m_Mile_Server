@@ -17,13 +17,19 @@ export const listGalleryItems = async ({ page = 1, limit = 12, type, service } =
   //3 if service filter is provided, add it to the filter object
   if (service) filter.service = service;
   //4 fetch paginated results sorted by order and createdAt, populating the linked service
-  return galleryCrud.findAndCountAll(filter, { page, limit, sort: { order: 1, createdAt: -1 }, populate: [{ path: 'service' }] });
+ return galleryCrud.findAndCountAll(filter, {
+  page, limit,
+  sort: { order: 1, createdAt: -1 },
+  populate: [{ path: 'service', localField: 'service', collection: 'services' }],
+});
 };
 
 // get a single gallery item by ID
 export const getGalleryItemById = async (id) => {
   //1 fetch the gallery item by ID, populating the linked service
-  const item = await galleryCrud.findByPk(id, { populate: [{ path: 'service' }] });
+  const item = await galleryCrud.findByPk(id, {
+  populate: [{ path: 'service', localField: 'service', collection: 'services' }],
+});
   //2 if not found or isDeleted, throw a 404 error
   if (!item || item.isDeleted) {
     throw createAppError(404, 'gallery_item_not_found');

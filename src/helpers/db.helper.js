@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
- export const buildLookupStages = (relations = []) => {
+ export const buildLookupStages = (relations = [], Model = null) => {
     if (!Array.isArray(relations)) return [];
     const stages = [];
 
@@ -17,15 +17,35 @@ import mongoose from 'mongoose';
         return projection;
     };
 
+    // Resolves the mongoose `ref` model for a schema path (handles both
+    // direct refs and array-of-ObjectId refs via `.caster`).
+    const resolveRefModel = (path) => {
+        if (!Model || !path) return null;
+        const schemaType = Model.schema.path(path);
+        if (!schemaType) return null;
+        const refName = schemaType.options?.ref || schemaType.caster?.options?.ref;
+        if (!refName) return null;
+        try {
+            return mongoose.model(refName);
+        } catch {
+            return null;
+        }
+    };
+
     for (const rel of relations) {
         if (Object.keys(rel).some(k => k.startsWith('$'))) {
             stages.push(rel);
             continue;
         }
 
-        const asField = rel.as || rel.localField?.replace(/Id$/, "") || rel.collection;
+        // Auto-resolve the referenced model from the schema (e.g. `ref: 'User'`)
+        // so callers can pass just `{ path: 'author' }` like mongoose populate,
+        // without having to hardcode the target collection name every time.
+        const refModel = resolveRefModel(rel.path);
+
+        const asField = rel.as || rel.localField?.replace(/Id$/, "") || rel.path || rel.collection;
         const localField = rel.localField || rel.path;
-        const fromCollection = rel.collection || asField;
+        const fromCollection = rel.collection || refModel?.collection?.name || asField;
         const foreignField = rel.foreignField || "_id";
         const justOne = rel.justOne || false;
 
@@ -110,7 +130,7 @@ import mongoose from 'mongoose';
 
                 if (rel.sort) nestedPipeline.push({ $sort: rel.sort });
                 if (rel.limit) nestedPipeline.push({ $limit: rel.limit });
-                if (rel.pipeline || rel.p) nestedPipeline.push(...buildLookupStages(rel.pipeline || rel.p));
+                if (rel.pipeline || rel.p) nestedPipeline.push(...buildLookupStages(rel.pipeline || rel.p, refModel));
 
                 const selectStage = buildSelectStage(rel.select);
                 if (selectStage) nestedPipeline.push({ $project: selectStage });
@@ -156,7 +176,7 @@ import mongoose from 'mongoose';
 
         if (rel.removeEmpty === true) stages.push({ $match: { [asField]: { $ne: [], $exists: true } } });
 
-        if (rel.populate) stages.push(...buildLookupStages(rel.populate));
+        if (rel.populate) stages.push(...buildLookupStages(rel.populate, refModel));
     }
 
     return stages;
@@ -294,4 +314,3 @@ import mongoose from 'mongoose';
         ? documents.map(doc => applyToDocument(doc, populateOptions))
         : applyToDocument(documents, populateOptions);
 };
-

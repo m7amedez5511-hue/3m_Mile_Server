@@ -30,7 +30,7 @@ const crudService = (modelName) => {
       try {
         const Model = getModel();
         if (options.populate || options.relations) {
-          const lookupStages = buildLookupStages(options.populate || options.relations);
+          const lookupStages = buildLookupStages(options.populate || options.relations, Model);
           const pipeline = [
             { $match: { _id: new mongoose.Types.ObjectId(String(pk)) } },
             ...lookupStages,
@@ -49,7 +49,7 @@ const crudService = (modelName) => {
         const Model = getModel();
         const mongoFilter = convertFilterToMatch(filter);
         if (options.populate || options.relations) {
-          const lookupStages = buildLookupStages(options.populate || options.relations);
+          const lookupStages = buildLookupStages(options.populate || options.relations, Model);
           const pipeline = [{ $match: mongoFilter }, ...lookupStages];
           const result = await Model.aggregate(pipeline);
           return result[0] || null;
@@ -67,7 +67,7 @@ const crudService = (modelName) => {
         const hasPopulate = options.populate || options.relations;
 
         if (hasPopulate) {
-          const lookupStages = buildLookupStages(options.populate || options.relations);
+          const lookupStages = buildLookupStages(options.populate || options.relations, Model);
           const pipeline = [{ $match: mongoFilter }];
 
           if (options.preSortPipeline) pipeline.push(...options.preSortPipeline);
@@ -140,7 +140,7 @@ const crudService = (modelName) => {
         const hasPopulate = options.populate || options.relations;
 
         if (hasPopulate) {
-          const lookupStages = buildLookupStages(options.populate || options.relations);
+          const lookupStages = buildLookupStages(options.populate || options.relations, Model);
           const pipeline = [{ $match: mongoFilter }];
 
           if (options.sort || options.order) {
@@ -246,7 +246,7 @@ const crudService = (modelName) => {
         const mongoOptions = { new: true, runValidators: true, upsert: restOptions.upsert || false, ...restOptions };
         const result = await Model.findOneAndUpdate(mongoFilter, updateData, mongoOptions).lean();
         if (!result || !(populate || relations)) return result;
-        const lookupStages = buildLookupStages(populate || relations);
+        const lookupStages = buildLookupStages(populate || relations, Model);
         const pipeline = [{ $match: { _id: result._id } }, ...lookupStages];
         const populated = await Model.aggregate(pipeline);
         return populated[0] || result;

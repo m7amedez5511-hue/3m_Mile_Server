@@ -25,16 +25,18 @@ export const listBlogPosts = async ({ page = 1, limit = 10, search, isPublished 
 
   //3 fetch paginated results with author populated
   return blogPostCrud.findAndCountAll(filter, {
-    page: safePage,
-    limit: safeLimit,
-    sort: { publishedAt: -1, createdAt: -1 },
-    populate: [{ path: 'author', select: ['fullName'] }],
-  });
+  page: safePage,
+  limit: safeLimit,
+  sort: { publishedAt: -1, createdAt: -1 },
+  populate: [{ path: 'author', localField: 'author', collection: 'users', select: ['fullName'] }],
+});
 };
 // get a single blog post by ID with author populated
 export const getBlogPostById = async (id) => {
   //1 fetch the blog post by ID and populate the author field
-  const post = await blogPostCrud.findByPk(id, { populate: [{ path: 'author', select: ['fullName'] }] });
+  const post = await blogPostCrud.findByPk(id, {
+  populate: [{ path: 'author', localField: 'author', collection: 'users', select: ['fullName'] }],
+});
   if (!post || post.isDeleted) {
     throw createAppError(404, 'blog_post_not_found');
   }

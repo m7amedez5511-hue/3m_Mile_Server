@@ -55,10 +55,10 @@ export const uploadMultipleImages = async (files, folder = '3mmile/products') =>
 };
 
 //==================================deleteImage================================================
-
-export const deleteImage = async (publicId) => {
+export const deleteImage = async (publicId, options = {}) => {
     try {
-        const result = await cloudinary.uploader.destroy(publicId);
+        const { resourceType = 'image' } = options; // 'image' | 'video' — critical for videos, destroy() defaults to 'image' otherwise
+        const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
         return result;
     } catch (error) {
         throw new Error(`Image deletion failed: ${error.message}`);

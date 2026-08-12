@@ -26,18 +26,11 @@ export const getGalleryItem = asyncHandler(async (req, res) => {
   return sendResponse(res, 200, 'gallery_item_fetched', item);
 });
 
-// Controller for creating a new gallery image item
-export const createGalleryImage = asyncHandler(async (req, res) => {
-  //1 call the service to create a new gallery item with type 'image'
-  const item = await createGalleryItemService(req, 'image');
-  //2 send success response with the created gallery item
-  return sendResponse(res, 201, 'gallery_item_created', item);
-});
-
-// Controller for creating a new gallery video item
-export const createGalleryVideo = asyncHandler(async (req, res) => {
-  //1 call the service to create a new gallery item with type 'video'
-  const item = await createGalleryItemService(req, 'video');
+// Controller for creating a new gallery item — image or video.
+// req.mediaType is set by uploadGalleryMediaToCloudinary based on the actual file mimetype.
+export const createGalleryItem = asyncHandler(async (req, res) => {
+  //1 call the service to create a new gallery item with the resolved type
+  const item = await createGalleryItemService(req, req.mediaType);
   //2 send success response with the created gallery item
   return sendResponse(res, 201, 'gallery_item_created', item);
 });

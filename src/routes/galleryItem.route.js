@@ -2,15 +2,14 @@ import { Router } from 'express';
 import {
   getGalleryItems,
   getGalleryItem,
-  createGalleryImage,
-  createGalleryVideo,
+  createGalleryItem,
   updateGalleryItem,
   deleteGalleryItem,
 } from '../controllers/index.js';
 import { isAuthorized } from '../middleware/auth.middleware.js';
 import { restrictTo } from '../middleware/permission.middleware.js';
 import { validate } from '../middleware/validate.js';
-import { uploaders, uploadToCloudinary, handleMulterError } from '../utils/multer.js';
+import { uploaders, uploadGalleryMediaToCloudinary, handleMulterError } from '../utils/multer.js';
 import { createGalleryItemSchema, updateGalleryItemSchema } from '../validators/galleryItem.validator.js';
 
 const router = Router();
@@ -19,37 +18,29 @@ const router = Router();
 router.get('/', getGalleryItems);
 router.get('/:id', getGalleryItem);
 
-// Admin-only writes — image and video are two distinct upload endpoints
-// so each can use the right multer/mime-type config.
+// Admin-only create — single endpoint for both image and video.
+// Type is resolved from the uploaded file's mimetype (see uploadGalleryMediaToCloudinary),
+// not trusted from the request body.
 router.post(
-  '/images',
+  '/',
   isAuthorized,
   restrictTo('gallery:write'),
-  uploaders.bannerImage.single('file'),
+  uploaders.galleryMedia.single('file'),
   handleMulterError,
   validate(createGalleryItemSchema), // validate body first, before hitting Cloudinary
-  uploadToCloudinary('3mmile/gallery/images'),
-  createGalleryImage,
+  uploadGalleryMediaToCloudinary,
+  createGalleryItem,
 );
 
-router.post(
-  '/videos',
-  isAuthorized,
-  restrictTo('gallery:write'),
-  uploaders.video.single('file'),
-  handleMulterError,
-  validate(createGalleryItemSchema), // validate body first, before hitting Cloudinary
-  uploadToCloudinary('3mmile/gallery/videos'),
-  createGalleryVideo,
-);
-
-// Metadata-only update (title/order/service/isActive). To replace the
-// actual media file, delete the item and upload a new one instead —
-// keeps this route's mime-type handling simple and unambiguous.
+// Admin-only update — metadata-only, media file is immutable.
+// you must replece video to video and image to image, not vice versa. If you want to change the type, delete and re-upload.
 router.put(
   '/:id',
   isAuthorized,
   restrictTo('gallery:write'),
+  uploaders.galleryMedia.single('file'),
+  handleMulterError,
+  uploadGalleryMediaToCloudinary, // optional, only if a new file is uploaded
   validate(updateGalleryItemSchema),
   updateGalleryItem,
 );

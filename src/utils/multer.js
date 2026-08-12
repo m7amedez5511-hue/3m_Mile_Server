@@ -143,7 +143,53 @@ export const uploaders = {
         allowedTypes: allowedMimeTypes.video,
         fileSizeLimit: fileSizeLimits.extraLarge,
         maxFiles: 1
+    }),
+
+    // Gallery PUT /:id — accepts image OR video in one field, since the item's
+    // real type isn't known until it's fetched from the DB (checked in the service)
+    galleryMedia: createUploader({
+        allowedTypes: [...allowedMimeTypes.image, ...allowedMimeTypes.video],
+        fileSizeLimit: fileSizeLimits.extraLarge,
+        maxFiles: 1
     })
+};
+
+// Single-endpoint gallery create: detects image vs video from mimetype,
+// uploads to the matching gallery folder, and attaches { mediaType, uploadedFile } to req
+export const uploadGalleryMediaToCloudinary = async (req, res, next) => {
+    try {
+        if (!req.file) {
+            return next(new FileUploadError('File is required', 400));
+        }
+
+        const isImage = allowedMimeTypes.image.includes(req.file.mimetype);
+        const isVideo = allowedMimeTypes.video.includes(req.file.mimetype);
+        const mediaType = isImage ? 'image' : isVideo ? 'video' : null;
+
+        // galleryMedia uploader's fileFilter already restricts mimetypes, this is a safety net
+        if (!mediaType) {
+            return next(new FileUploadError('Unsupported file type for gallery item', 400));
+        }
+
+        const folder = mediaType === 'image' ? '3mmile/gallery/images' : '3mmile/gallery/videos';
+
+        const b64 = Buffer.from(req.file.buffer).toString('base64');
+        const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+        logger.info(`Uploading gallery ${mediaType} to Cloudinary folder: ${folder}`);
+
+        const result = await uploadImage(dataURI, folder, {
+            public_id: `${Date.now()}_${Math.random().toString(36).substring(7)}`,
+            resource_type: mediaType,
+        });
+
+        req.mediaType = mediaType;   // 'image' | 'video' — resolved from the actual file, not trusted from body
+        req.uploadedFile = result;   // { publicId, url, ... }
+        next();
+    } catch (error) {
+        logger.error('Error in uploadGalleryMediaToCloudinary:', error);
+        next(new FileUploadError(`Upload failed: ${error.message}`, 500));
+    }
 };
 
 // Middleware to handle file upload to Cloudinary

@@ -1,181 +1,368 @@
-# 3m_Mile_Server
-================================================================
-3mMile Backend API — README
-================================================================
+# 3mMile — Car Services Backend API
 
-OVERVIEW
---------
-Node.js + Express + MongoDB (Mongoose) backend API.
-Uses JWT authentication, role/permission-based authorization,
-Zod validation, Winston logging, and Docker for local/dev/prod
-environments. Nginx sits in front of the API as a reverse proxy.
+The backend engine powering a comprehensive car-services platform: categories, services, products, packages, branches, gallery, blog, partners, FAQs, and admin-driven content — all behind a secure, role-aware REST API.
 
-TECH STACK
-----------
-- Runtime:      Node.js 22 (Alpine, via Docker)
-- Framework:    Express 5
-- Database:     MongoDB 7 + Mongoose
-- Cache/Queue:  Redis 8 (configured, not yet wired into business logic)
-- Auth:         JSON Web Tokens (access + refresh)
-- Validation:   Zod
-- Logging:      Winston (+ daily rotate file in production)
-- Security:     Helmet, CORS, express-rate-limit
-- Reverse proxy: Nginx (Alpine)
-- Containerization: Docker + docker-compose (base / dev / prod overlays)
+---
 
-----------------------------------------------------------------
-PROJECT STRUCTURE
-----------------------------------------------------------------
+## Table of Contents
+
+- [Introduction](#introduction)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+  - [Running Locally (without Docker)](#running-locally-without-docker)
+  - [Running with Docker](#running-with-docker-recommended)
+- [API Documentation](#api-documentation-core-endpoints)
+- [Environment Variables](#environment-variables)
+- [Scripts](#scripts)
+- [Database Seeding](#database-seeding)
+- [Error Handling](#error-handling)
+- [Security Considerations](#security-considerations)
+- [Contribution Guidelines](#contribution-guidelines)
+- [License](#license)
+- [Contact / Support](#contact--support)
+
+---
+
+## Introduction
+
+**3mMile** is the backend API for a car-services business — think detailing, PPF (paint protection film), ceramic coating, thermal insulation, and related automotive services. It gives an operations team a single place to manage the public-facing catalog (services, products, packages, branches, gallery, blog, partners, FAQs) and site-wide settings, while exposing clean, paginated, filterable read endpoints for a public storefront/front-end to consume.
+
+Rather than a self-service marketplace with open registration, 3mMile is intentionally **admin-managed**: there is no public sign-up flow. A single System Administrator role controls all write operations, which keeps the data model simple and the attack surface small, while every public `GET` endpoint (services, products, categories, branches, gallery, blog posts, packages, partners, FAQs, site settings) remains open for the storefront to read without authentication.
+
+**Value proposition:**
+- One consistent, predictable API surface for all catalog resources (same pagination, filtering, sort, and response shape conventions across every resource).
+- Built-in audit logging for every create/update/delete action, so changes are traceable.
+- Production-ready from day one: Dockerized, reverse-proxied through Nginx, with distinct development/production Compose overlays.
+
+---
+
+## Features
+
+- **JWT-based authentication** — short-lived access tokens (15m) + long-lived refresh tokens (30d), admin-only login (no public registration).
+- **Role & permission-based authorization** — a single `Admin` (System Administrator) role bypasses granular permission checks; the permission model (`resource:action` slugs) is in place for future role expansion.
+- **Full content-management CRUD** across Categories, Products, Services (with image gallery), Branches, Blog Posts, Packages, Partners, Gallery Items (images & videos), FAQs, and Site Settings — each with public read access and admin-only writes.
+- **Audit logging** — every write action (`CREATE` / `UPDATE` / `DELETE` / `LOGIN`) is recorded with actor, resource, and details, without ever blocking or failing the triggering request.
+- **Image & video uploads** via Multer + Cloudinary, including safe replacement/cleanup of old assets and mimetype-based media-type detection for the gallery.
+- **Zod-based request validation** for every write endpoint, with sensible coercion for multipart/form-data (booleans, numbers, dates).
+- **MongoDB integration via Mongoose**, including a generic, reusable CRUD service layer (`crudService`) shared across all resources.
+- **Structured error handling** — a single global error handler normalizes Zod, Mongoose, JWT, and MongoDB duplicate-key errors into one consistent JSON shape.
+- **Rate limiting** — a general API limiter plus a stricter limiter dedicated to the login endpoint.
+- **Security hardening** — Helmet with a locked-down Content Security Policy, CORS allow-listing, `trust proxy` for correct client IPs behind Nginx.
+- **Structured logging** with Winston (JSON in production, daily-rotated log files).
+- **Environment-based configuration** for development, UAT, and production.
+- **Dockerized deployment** — multi-stage Dockerfile (development / production) plus an Nginx reverse proxy with optional TLS termination.
+- Redis is wired into the Docker Compose stack and ready to use, though it is not yet consumed by application logic (reserved for caching/queues).
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js 22 (Alpine, via Docker) |
+| Framework | Express 5 |
+| Database | MongoDB 7 + Mongoose |
+| Cache / Queue | Redis 8 (configured, not yet used by business logic) |
+| Authentication | JSON Web Tokens (access + refresh), `bcryptjs` for password hashing |
+| Validation | Zod |
+| Logging | Winston (+ `winston-daily-rotate-file` in production) |
+| File Storage | Cloudinary (via Multer memory storage) |
+| Security | Helmet, CORS, `express-rate-limit` |
+| Reverse Proxy | Nginx (Alpine) |
+| Containerization | Docker + Docker Compose (base / dev / prod overlays) |
+
+---
+
+## Project Structure
+
+```
 src/
-  App/app.js              -> Express app setup (middleware, routes mount)
-  server.js                -> Entry point: connects DB, starts server, handles shutdown
+  App/app.js               → Express app setup (middleware, routes mount)
+  server.js                → Entry point: connects DB, starts server, handles graceful shutdown
   DB/
-    connection/             -> Mongoose connection logic
-    models/                 -> Mongoose schemas (User, Role, Product, Category,
-                               Service, Branch, Booking, BlogPost, AuditLog, ...)
-  routes/                   -> Express routers, one file per resource
-  controllers/              -> Request handlers (thin, call services)
-  services/                 -> Business logic + DB access (crud.service.js is
-                               a generic reusable CRUD layer over any model)
-  middleware/                -> auth, permission, validation, rate limiting,
-                               file upload, global error handling
-  validators/                -> Zod schemas per resource
-  helpers/                   -> query building, DB aggregation helpers
-  utils/                      -> JWT, logger, response formatter, security, etc.
-  constants/                  -> Central app-wide constants/config
+    connection/             → Mongoose connection logic
+    models/                 → Mongoose schemas (User, Role, Category, Service, Product,
+                              Branch, Package, GalleryItem, Partner, BlogPost, Faq,
+                              SiteSetting, AuditLog, ...)
+  routes/                   → Express routers, one file per resource
+  controllers/              → Thin request handlers that call services
+  services/                 → Business logic + DB access (crud.service.js is a generic,
+                              reusable CRUD layer over any Mongoose model)
+  middleware/                → auth, permission checks, validation, rate limiting,
+                              file upload, global error handling
+  validators/                → Zod schemas, one per resource
+  helpers/                   → query-building and MongoDB aggregation helpers
+  utils/                      → JWT signing/verification, logging, response formatting,
+                              security (Helmet/CSP), Cloudinary, slug generation, etc.
+  constants/                  → Central app-wide constants and configuration
 
 scripts/
-  seed.js                    -> Creates base Admin role + initial admin user
+  seed.js                    → Creates the base Admin role and the initial admin user
 
-nginx/                        -> Reverse proxy config + SSL placeholder
-Dockerfile                    -> Multi-stage build (development / production)
-start.sh                      -> Container entrypoint (runs seed if enabled,
-                               then starts the server in the right mode)
-docker-compose.yaml            -> Base service definitions
-docker-compose.dev.yaml        -> Local development overrides
-docker-compose.prod.yaml       -> Production overrides
+nginx/                        → Reverse proxy config, template, and SSL placeholder
+Dockerfile                    → Multi-stage build (development / production)
+start.sh                      → Container entrypoint (runs seed if enabled, then starts
+                              the server in the appropriate mode)
+docker-compose.yaml            → Base service definitions
+docker-compose.dev.yaml        → Local development overrides
+docker-compose.prod.yaml       → Production overrides
+```
 
-----------------------------------------------------------------
-ENVIRONMENT VARIABLES (.env)
-----------------------------------------------------------------
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js v22+ (or Docker, if you'd rather not install it locally)
+- MongoDB 7 (local instance or a hosted cluster)
+- Redis (local instance, optional for now — reserved for future use)
+- npm
+
+### Running Locally (without Docker)
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/3mMile.git
+   cd 3mMile
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the project root (see [Environment Variables](#environment-variables) below).
+4. (Optional) Seed the initial Admin role and Admin user:
+   ```bash
+   node scripts/seed.js
+   ```
+5. Start the server:
+   ```bash
+   npm run dev     # development mode, auto-restarts on file changes
+   npm start       # production mode
+   ```
+
+The API is available at `http://localhost:3000/api/v1`, with a health check at `http://localhost:3000/api/v1/health`.
+
+### Running with Docker (recommended)
+
+**Development** (hot-reload, exposed dev ports):
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up --build
+```
+- API (via Nginx): `http://localhost:8082`
+- API (direct, dev): `http://localhost:3001`
+- Mongo Express (UI, optional): `http://localhost:8081` — add `--profile dev-tools`
+- MongoDB exposed on: `localhost:27018`
+- Redis exposed on: `localhost:6380`
+
+**Production**:
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up --build -d
+```
+- API (via Nginx only): `http://<server-ip>` (port 80)
+- MongoDB and Redis are **not** exposed to the host in production.
+
+To stop the dev stack:
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml down
+```
+
+---
+
+## API Documentation (Core Endpoints)
+
+All routes are mounted under `/api/v1`. There is no public registration endpoint — the platform is admin-managed, and every write route requires a valid admin session.
+
+| Resource | Method & Path | Access |
+|---|---|---|
+| Auth | `POST /api/v1/auth/login` | Public (rate-limited) |
+| Auth | `GET /api/v1/auth/me` | Authenticated |
+| Health | `GET /api/v1/health` | Public |
+| Categories | `GET /api/v1/categories`, `GET /api/v1/categories/:id` | Public |
+| Categories | `POST /api/v1/categories`, `PUT /api/v1/categories/:id`, `DELETE /api/v1/categories/:id` | Admin |
+| Services | `GET /api/v1/services`, `GET /api/v1/services/:id` | Public |
+| Services | `POST /api/v1/services`, `PUT /api/v1/services/:id`, `PUT /api/v1/services/:id/gallery`, `DELETE /api/v1/services/:id` | Admin |
+| Products | `GET /api/v1/products`, `GET /api/v1/products/:id` | Public |
+| Products | `POST /api/v1/products`, `PUT /api/v1/products/:id`, `DELETE /api/v1/products/:id` | Admin |
+| Branches | `GET /api/v1/branches`, `GET /api/v1/branches/:id` | Public |
+| Branches | `POST /api/v1/branches`, `PUT /api/v1/branches/:id`, `DELETE /api/v1/branches/:id` | Admin |
+| Blog Posts | `GET /api/v1/blog-posts`, `GET /api/v1/blog-posts/:id` | Public |
+| Blog Posts | `POST /api/v1/blog-posts`, `PUT /api/v1/blog-posts/:id`, `DELETE /api/v1/blog-posts/:id` | Admin |
+| Packages | `GET /api/v1/packages`, `GET /api/v1/packages/:id` | Public |
+| Packages | `POST /api/v1/packages`, `PUT /api/v1/packages/:id`, `DELETE /api/v1/packages/:id` | Admin |
+| Gallery | `GET /api/v1/gallery`, `GET /api/v1/gallery/:id` | Public |
+| Gallery | `POST /api/v1/gallery`, `PUT /api/v1/gallery/:id`, `DELETE /api/v1/gallery/:id` | Admin |
+| Partners | `GET /api/v1/partners`, `GET /api/v1/partners/:id` | Public |
+| Partners | `POST /api/v1/partners`, `PUT /api/v1/partners/:id`, `DELETE /api/v1/partners/:id` | Admin |
+| FAQs | `GET /api/v1/faqs`, `GET /api/v1/faqs/:id` | Public |
+| FAQs | `POST /api/v1/faqs`, `PUT /api/v1/faqs/:id`, `DELETE /api/v1/faqs/:id` | Admin |
+| Site Settings | `GET /api/v1/settings` | Public |
+| Site Settings | `PUT /api/v1/settings` | Admin |
+| Users | `GET /api/v1/users`, `GET /api/v1/users/:id`, `PUT /api/v1/users/:id`, `DELETE /api/v1/users/:id` | Admin |
+| Roles | `GET /api/v1/roles`, `POST /api/v1/roles`, `DELETE /api/v1/roles/:id` | Admin |
+| Audit Logs | `GET /api/v1/audit`, `GET /api/v1/audit/:id` | Admin |
+
+> Note: bookings, orders, carts, coupons, and customer-facing reviews are not part of the current data model — the API currently focuses on catalog/content management. These may be added in a future iteration.
+
+### Example: Admin Login
+
+**Request**
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "ChangeMe123!"
+}
+```
+
+**Response — `200 OK`**
+```json
+{
+  "success": true,
+  "message": "login_successful",
+  "responseAt": "2026-08-12T09:00:00.000Z",
+  "data": {
+    "user": {
+      "_id": "6650f1a2b3c4d5e6f7890123",
+      "fullName": "Super Admin",
+      "email": "admin@example.com",
+      "role": { "name": "Admin" },
+      "isActive": true
+    },
+    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+  }
+}
+```
+
+Use the returned `accessToken` as a `Bearer` token (see `TOKEN_PREFIX`) on subsequent authenticated requests via the `Authorization` header.
+
+---
+
+## Environment Variables
+
 Create a `.env` file in the project root (never commit this file).
-Required variables:
 
-  NODE_ENV=development                # development | production | uat
-  PORT=3000
+| Variable | Description | Example / Default | Required |
+|---|---|---|---|
+| `NODE_ENV` | Runtime environment | `development` / `production` / `uat` | Yes |
+| `PORT` | Port the server listens on | `3000` | Yes |
+| `MONGODB_URI` | MongoDB connection string | `mongodb://user:pass@mongo:27017/3mmile?authSource=admin` | Yes |
+| `MONGO_USERNAME` | MongoDB root username (used by Docker Compose) | — | Yes (Docker) |
+| `MONGO_PASSWORD` | MongoDB root password (used by Docker Compose) | — | Yes (Docker) |
+| `REDIS_URL` | Redis connection string | `redis://redis:6379` | Yes |
+| `ACCESS_TOKEN_SECRET` | Secret used to sign access tokens | long random string | Yes |
+| `REFRESH_TOKEN_SECRET` | Secret used to sign refresh tokens | long random string, different from the access secret | Yes |
+| `TOKEN_PREFIX` | Authorization header scheme | `Bearer` | Yes |
+| `API_PUBLIC_URL` | Base URL used to build uploaded-file URLs | `http://localhost:8082` | Yes |
+| `CORS_ORIGINS` | Comma-separated list of allowed origins | `http://localhost:5173,http://localhost:3000` | Yes |
+| `API_SERVER_NAME` | Server name used by the Nginx template | `localhost` | Docker only |
+| `API_UPSTREAM_HOST` | Upstream host used by the Nginx template | `3mMile-app` | Docker only |
+| `RUN_DB_SEED` | Run the seed script automatically on container start | `false` (set `true` for dev/staging only) | No |
+| `SEED_ADMIN_EMAIL` | Email for the seeded admin account | `admin@example.com` | No |
+| `SEED_ADMIN_PASSWORD` | Password for the seeded admin account | randomly generated if unset | No |
+| `MONGO_EXPRESS_USERNAME` | Mongo Express basic-auth username | — | Only with `dev-tools` profile |
+| `MONGO_EXPRESS_PASSWORD` | Mongo Express basic-auth password | — | Only with `dev-tools` profile |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary account cloud name | — | Yes (for uploads) |
+| `CLOUDINARY_API_KEY` | Cloudinary API key | — | Yes (for uploads) |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret | — | Yes (for uploads) |
 
-  MONGODB_URI=mongodb://<user>:<pass>@mongo:27017/3mmile?authSource=admin
-  MONGO_USERNAME=your_mongo_root_user
-  MONGO_PASSWORD=your_mongo_root_password
+---
 
-  REDIS_URL=redis://redis:6379
+## Scripts
 
-  ACCESS_TOKEN_SECRET=change_this_to_a_long_random_secret
-  REFRESH_TOKEN_SECRET=change_this_to_a_different_long_random_secret
-  TOKEN_PREFIX=Bearer
+| Command | Description |
+|---|---|
+| `npm start` | Start the server in production mode |
+| `npm run dev` | Start the server with `nodemon`, auto-restarting on file changes |
+| `npm run seed` | Run the database seed script manually |
+| `npm test` | Run the test suite with coverage (Jest) |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run lint` | Lint the codebase with ESLint |
 
-  API_PUBLIC_URL=http://localhost:8082      # used to build uploaded-file URLs
-  CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+---
 
-  API_SERVER_NAME=localhost                 # used by nginx template
-  API_UPSTREAM_HOST=3mMile-app               # used by nginx template
+## Database Seeding
 
-  RUN_DB_SEED=true                           # set true only for dev/staging
-  SEED_ADMIN_EMAIL=admin@example.com
-  SEED_ADMIN_PASSWORD=ChangeMe123!
+`scripts/seed.js` creates:
+- An **Admin** role with the full permission set.
+- One admin user, using `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` if provided, or defaults otherwise.
 
-  MONGO_EXPRESS_USERNAME=admin               # only needed if using dev-tools profile
-  MONGO_EXPRESS_PASSWORD=admin
-
-----------------------------------------------------------------
-RUNNING LOCALLY (WITHOUT DOCKER)
-----------------------------------------------------------------
-1. Install dependencies:
-     npm install
-
-2. Make sure MongoDB and Redis are running locally (or point
-   MONGODB_URI / REDIS_URL at remote instances).
-
-3. (Optional) Seed initial data:
-     node scripts/seed.js
-
-4. Start in dev mode (auto-restart on file changes):
-     npm run dev
-
-5. Start in production mode:
-     npm start
-
-The API will be available at:  http://localhost:3000/api/v1
-Health check:                   http://localhost:3000/api/v1/health
-
-----------------------------------------------------------------
-RUNNING WITH DOCKER (RECOMMENDED)
-----------------------------------------------------------------
-Development (hot-reload, exposed dev ports):
-
-    docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up --build
-
-  - API (via nginx):     http://localhost:8082
-  - API (direct, dev):   http://localhost:3001
-  - Mongo Express (UI):  http://localhost:8081   (only if --profile dev-tools)
-  - MongoDB exposed on:  localhost:27018
-  - Redis exposed on:    localhost:6380
-
-Production:
-
-    docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up --build -d
-
-  - API (via nginx only): http://<server-ip>  (port 80)
-  - MongoDB/Redis are NOT exposed to the host in production.
-
-To stop:
-    docker compose -f docker-compose.yaml -f docker-compose.dev.yaml down
-
-----------------------------------------------------------------
-SEEDING THE DATABASE
-----------------------------------------------------------------
-scripts/seed.js creates:
-  - An "Admin" role with a starter set of permissions
-  - One admin user (email/password from SEED_ADMIN_EMAIL /
-    SEED_ADMIN_PASSWORD env vars, or a random generated password
-    printed once to the console if not set)
-
-The script is idempotent — running it multiple times will not
-create duplicates.
+The script is **idempotent** — running it multiple times will not create duplicates, and it will repair an admin user that is missing its role.
 
 Run manually:
-    node scripts/seed.js
+```bash
+node scripts/seed.js
+```
 
 Run inside a running container:
-    docker compose exec 3mMile-app node scripts/seed.js
+```bash
+docker compose exec 3mMile-app node scripts/seed.js
+```
 
-Automatic run on container start:
-    Set RUN_DB_SEED=true in your .env — start.sh will run the seed
-    automatically before starting the server. Recommended for local/
-    dev/staging ONLY. Never enable this in production; run the seed
-    manually, once, with real admin credentials instead.
+Automatic run on container start: set `RUN_DB_SEED=true` — `start.sh` will run the seed automatically before starting the server. **Recommended for local/dev/staging only.** In production, run the seed manually, once, with real admin credentials — never leave `RUN_DB_SEED=true` enabled in production.
 
-----------------------------------------------------------------
-API DOCUMENTATION
-----------------------------------------------------------------
-See postman.json in the project root — import it directly into
-Postman (File > Import) to get a ready-made collection of every
-current endpoint, with example request bodies and a {{baseUrl}}
-variable you can point at local/dev/staging/prod.
+---
 
-----------------------------------------------------------------
-AVAILABLE NPM SCRIPTS
-----------------------------------------------------------------
-  npm start        Start the server (production mode)
-  npm run dev       Start the server with nodemon (auto-restart on changes)
-  npm test          (placeholder — wire up Jest before relying on this)
+## Error Handling
 
-----------------------------------------------------------------
-NOTES / KNOWN GAPS (see full audit report for details)
-----------------------------------------------------------------
-- Product/Category/Service/Branch/Booking/BlogPost CRUD endpoints
-  are not implemented yet — only Auth and Audit routes exist so far.
-- No Order/Cart/Review/Coupon models yet.
-- Redis is configured in docker-compose but not yet used by the app.
-- Automated tests are not set up yet (npm test is a placeholder).
-================================================================
+The API returns a consistent, structured JSON error shape from a single global error handler:
+
+```json
+{
+  "success": false,
+  "message": "Validation failed: email (Invalid email).",
+  "responseAt": "2026-08-12T09:00:00.000Z",
+  "error": {
+    "code": "validation_failed",
+    "path": "/api/v1/auth/login",
+    "details": [
+      { "field": "email", "code": "Invalid email" }
+    ]
+  }
+}
+```
+
+Zod validation errors, Mongoose validation/cast errors, MongoDB duplicate-key errors, and JWT errors are all normalized into this shape with an appropriate HTTP status code. In development/UAT, `500`-level errors additionally include the stack trace for easier debugging; this is omitted in production.
+
+---
+
+## Security Considerations
+
+- **Short-lived access tokens** (15 minutes) paired with longer-lived refresh tokens (30 days) limit the exposure window of a leaked access token.
+- **Password hashing** with `bcryptjs` (12 salt rounds) — plaintext passwords are never stored or logged.
+- **Input validation** on every write endpoint via Zod schemas, including strict field whitelisting in services to prevent mass-assignment of protected fields (`isDeleted`, `slug`, `imagePublicId`, etc.).
+- **Rate limiting** — a general limiter across the whole API, and a stricter limiter dedicated to `/auth/login` to slow down brute-force attempts.
+- **Helmet** with a locked-down Content Security Policy, and **CORS** restricted to an explicit allow-list of origins.
+- **Audit logging** of every create/update/delete action and every login, including the acting user and IP address.
+- **No public registration** — new admin accounts can only be created by an already-authenticated admin, eliminating an entire class of account-takeover and spam-signup risk.
+- Sensitive files (`.env`, uploaded media outside version control, log files) are excluded via `.gitignore` and `.dockerignore`.
+
+---
+
+## Contribution Guidelines
+
+1. Fork the repository and create a feature branch off `main`:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+2. Make your changes, following the existing code style (thin controllers, business logic in services, Zod validation on every write route).
+3. Add or update tests where applicable, and make sure `npm run lint` and `npm test` pass.
+4. Commit with clear, descriptive messages and open a pull request describing the change and its motivation.
+5. Be responsive to review feedback — small, focused PRs are easier to review and merge.
+
+---
+
+## License
+
+MIT License — see the `LICENSE` file for details (add one if it doesn't yet exist in the repository).
+
+---
+
+## Contact / Support
+
+For bugs, feature requests, or questions, please open an issue in the repository's issue tracker, or reach out at `support@3mmile.example.com`.

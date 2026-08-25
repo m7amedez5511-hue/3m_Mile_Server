@@ -10,8 +10,17 @@ const blogPostSchema = new mongoose.Schema(
     coverImage: {
       url: { type: String, default: null },
       imagePublicId: { type: String, default: null },
+      // Alt is the accessible description; width/height let the card reserve its aspect
+      // box before the image loads, which prevents layout shift. Neither is allowed to
+      // change the container's own dimensions.
+      alt: { type: String, default: '' },
+      width: { type: Number, default: null },
+      height: { type: Number, default: null },
     },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // Category archives at /category/{slug}. Kept alongside `tags` rather than
+    // replacing it — they are different things and the frontend renders only categories.
+    categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }],
     tags: [{ type: String }],
     isPublished: { type: Boolean, default: false },
     publishedAt: { type: Date, default: null },

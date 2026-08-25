@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { slugish } from './shared.validator.js';
 
 // multipart/form-data always arrives as strings, so booleans are coerced
 const booleanish = z
@@ -19,8 +20,11 @@ const endDateAfterStartDate = (data, ctx) => {
 
 const basePackageSchema = z.object({
   title: z.string().min(2).max(200),
+  // The admin owns the URL — see resolveSlug in utils/buildSlugify.js.
+  slug: slugish.optional(),
   description: z.string().optional(),
-  service: z.string().length(24).optional(),
+  // '' unlinks the service; updatePackage maps it to null.
+  service: z.string().length(24).optional().or(z.literal('')),
   price: z.coerce.number().min(0).optional(),
   discountPercentage: z.coerce.number().min(0).max(100).optional(),
   startDate: z.coerce.date().optional(),

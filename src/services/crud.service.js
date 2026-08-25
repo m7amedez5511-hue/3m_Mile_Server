@@ -243,7 +243,8 @@ const crudService = (modelName) => {
         const Model = getModel();
         const mongoFilter = convertFilterToMatch(filter);
         const { populate, relations, ...restOptions } = options;
-        const mongoOptions = { new: true, runValidators: true, upsert: restOptions.upsert || false, ...restOptions };
+        // `returnDocument: 'after'` replaces the deprecated `new: true`; identical behaviour.
+        const mongoOptions = { returnDocument: 'after', runValidators: true, upsert: restOptions.upsert || false, ...restOptions };
         const result = await Model.findOneAndUpdate(mongoFilter, updateData, mongoOptions).lean();
         if (!result || !(populate || relations)) return result;
         const lookupStages = buildLookupStages(populate || relations, Model);
@@ -267,7 +268,7 @@ const crudService = (modelName) => {
     findOneAndReplace: async (filter, replacement, options = {}) => {
       try {
         const Model = getModel();
-        const mongoOptions = { new: true, runValidators: true, ...options };
+        const mongoOptions = { returnDocument: 'after', runValidators: true, ...options };
         return await Model.findOneAndReplace(convertFilterToMatch(filter), replacement, mongoOptions).lean();
       } catch (error) {
         throw createError(500, error);

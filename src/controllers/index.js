@@ -12,3 +12,8 @@ export * from './partner.controller.js';
 export * from './faq.controller.js';
 export * from './siteSetting.controller.js';
 export * from './role.controller.js';
+
+// CMS page sections
+export * from './sections.controller.js';
+export * from './warrantyGroup.controller.js';
+export * from './review.controller.js';

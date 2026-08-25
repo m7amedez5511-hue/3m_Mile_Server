@@ -5,6 +5,9 @@ export class AppError extends Error {
   constructor(status, code) {
     super(code);
     this.status = status;
+    // `errorHandler.getErrorCode` reads `error.code`; without this every hand-thrown
+    // error reaches the client as `internal_error`. `message` keeps the same value.
+    this.code = code;
     this.isOperational = true;
 
     Error.captureStackTrace(this, this.constructor);

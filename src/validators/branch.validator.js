@@ -1,22 +1,34 @@
 import { z } from 'zod';
+import { booleanish, numberish } from './shared.validator.js';
 
-const booleanish = z
-  .union([z.boolean(), z.enum(['true', 'false'])])
-  .transform((v) => v === true || v === 'true')
+/**
+ * Pin offset on the map image, e.g. "58%". A CSS string, not a number — the frontend
+ * applies it directly as `top` / `inset-inline-start`.
+ */
+const pinOffset = z
+  .string()
+  .trim()
+  .max(10)
+  .regex(/^(\d{1,3}(\.\d+)?%)?$/, 'pin offset must be a percentage such as 58%')
   .optional();
 
-export const createBranchSchema = z.object({
+const base = {
   name: z.string().min(2).max(200),
-  city: z.string().optional(),
-  address: z.string().optional(),
-  phone: z.string().optional(),
-  whatsapp: z.string().optional(),
-  lat: z.coerce.number().optional(),
-  lng: z.coerce.number().optional(),
-  mapUrl: z.string().url().optional(),
-  workingHours: z.string().optional(),
+  city: z.string().max(120).optional(),
+  address: z.string().max(500).optional(),
+  phone: z.string().max(40).optional(),
+  whatsapp: z.string().max(40).optional(),
+  lat: numberish.optional(),
+  lng: numberish.optional(),
+  // `.or(z.literal(''))` — the dashboard submits empty text fields so they can be cleared.
+  mapUrl: z.string().url().max(1000).optional().or(z.literal('')),
+  workingHours: z.string().max(200).optional(),
+  'pin.top': pinOffset,
+  'pin.start': pinOffset,
   order: z.coerce.number().int().optional(),
-  isActive: booleanish,
-});
+  isActive: booleanish.optional(),
+};
+
+export const createBranchSchema = z.object(base);
 
 export const updateBranchSchema = createBranchSchema.partial();

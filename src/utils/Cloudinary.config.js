@@ -35,7 +35,11 @@ export const uploadImage = async (filePath, folder = '3mMile', options = {}) => 
             bytes: result.bytes,
         };
     } catch (error) {
-        throw new Error(`Image upload failed: ${error.message}`);
+        const wrapped = new Error(`Image upload failed: ${error.message}`);
+        // Preserve Cloudinary's status so callers can distinguish a corrupt/invalid
+        // file (400, the client's fault) from an outage (5xx).
+        wrapped.http_code = error.http_code;
+        throw wrapped;
     }
 };
 //==================================uploadMultipleImages================================================

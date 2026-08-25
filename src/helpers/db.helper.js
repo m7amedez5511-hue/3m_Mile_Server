@@ -201,6 +201,20 @@ import mongoose from 'mongoose';
     return sortObj;
 };
 
+/**
+ * Cast a filter value to ObjectId when it looks like one.
+ *
+ * Needed for list filters on populated endpoints: those go through the aggregation
+ * branch of findAndCountAll, and aggregation $match does no schema casting — a string
+ * never equals a stored ObjectId, so `?category=<id>` silently returned zero rows.
+ * Only key names ending in `Id` are auto-cast by convertFilterToMatch below; ref fields
+ * named `category`/`service`/`categories` must be cast explicitly by the caller.
+ */
+export const castObjectId = (value) =>
+    (typeof value === 'string' && mongoose.isValidObjectId(value))
+        ? new mongoose.Types.ObjectId(value)
+        : value;
+
  export const convertFilterToMatch = (filter) => {
     if (!filter || typeof filter !== 'object') return filter;
     const match = {};

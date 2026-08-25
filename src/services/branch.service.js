@@ -5,10 +5,13 @@ import { logAudit, actorFromReq } from '../utils/auditLogger.js';
 
 const branchCrud = crudService('Branch');
 
-// whitelist of fields allowed to be updated directly by the client
+// whitelist of fields allowed to be updated directly by the client.
+// `pin.*` are dotted: Mongo applies them as a nested $set, so moving one half of the
+// pin does not rewrite the other.
 const UPDATABLE_FIELDS = [
   'name', 'city', 'address', 'phone', 'whatsapp',
   'mapUrl', 'workingHours', 'order', 'isActive',
+  'pin.top', 'pin.start',
 ];
 
 // get paginated list of branches with optional city filter
@@ -46,6 +49,12 @@ export const createBranch = async (req) => {
     location: { lat, lng },
     mapUrl,
     workingHours,
+    // Nested by hand: Mongoose applies dotted paths on update but takes them literally
+    // on `create()`, which would store a top-level "pin.top" key.
+    pin: {
+      top: req.body['pin.top'] ?? '',
+      start: req.body['pin.start'] ?? '',
+    },
     order: order ?? 0,
     isActive: isActive ?? true,
   };

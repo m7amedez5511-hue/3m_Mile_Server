@@ -5,6 +5,7 @@ import {
   createPackage,
   updatePackage,
   deletePackage,
+  getPackageBySlugHandler
 } from '../controllers/index.js';
 import { isAuthorized } from '../middleware/auth.middleware.js';
 import { restrictTo } from '../middleware/permission.middleware.js';
@@ -16,6 +17,7 @@ const router = Router();
 
 // Public reads
 router.get('/', getPackages);
+router.get('/slug/:slug', getPackageBySlugHandler);
 router.get('/:id', getPackage);
 
 // Admin-only writes

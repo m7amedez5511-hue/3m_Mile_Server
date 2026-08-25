@@ -13,6 +13,13 @@ import partnerRoutes from './partner.route.js';
 import faqRoutes from './faq.route.js';
 import siteSettingRoutes from './siteSetting.route.js';
 import roleRoutes from './role.route.js';
+import homeRoutes from './home.route.js';
+import promoRoutes from './promo.route.js';
+import offersPageRoutes from './offersPage.route.js';
+import blogIntroRoutes from './blogIntro.route.js';
+import galleryIntroRoutes from './galleryIntro.route.js';
+import warrantyGroupRoutes from './warrantyGroup.route.js';
+import reviewRoutes from './review.route.js';
 const router = Router();
 
 // Health check (matched by nginx location /api/health)
@@ -34,4 +41,13 @@ router.use('/partners', partnerRoutes);
 router.use('/faqs', faqRoutes);
 router.use('/settings', siteSettingRoutes);
 router.use('/roles', roleRoutes);
+
+// CMS page sections — one mount per public page section.
+router.use('/home', homeRoutes);
+router.use('/promo', promoRoutes);
+router.use('/offers-page', offersPageRoutes);
+router.use('/blog-intro', blogIntroRoutes);
+router.use('/gallery-intro', galleryIntroRoutes);
+router.use('/warranty', warrantyGroupRoutes);
+router.use('/reviews', reviewRoutes);
 export default router;

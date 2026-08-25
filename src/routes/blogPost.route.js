@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getBlogPosts,
   getBlogPost,
+  getBlogPostBySlugHandler,
   createBlogPost,
   updateBlogPost,
   deleteBlogPost,
@@ -14,8 +15,10 @@ import { createBlogPostSchema, updateBlogPostSchema } from '../validators/blogPo
 
 const router = Router();
 
-// Public reads
+// Public reads. Posts are addressed by slug on the public site (`/{slug}`), so the
+// slug route is what the frontend actually calls; `/:id` serves the admin.
 router.get('/', getBlogPosts);
+router.get('/slug/:slug', getBlogPostBySlugHandler);
 router.get('/:id', getBlogPost);
 
 // Admin-only writes

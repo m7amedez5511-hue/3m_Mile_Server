@@ -204,7 +204,63 @@ All routes are mounted under `/api/v1`. There is no public registration endpoint
 | Roles | `GET /api/v1/roles`, `POST /api/v1/roles`, `DELETE /api/v1/roles/:id` | Admin |
 | Audit Logs | `GET /api/v1/audit`, `GET /api/v1/audit/:id` | Admin |
 
-> Note: bookings, orders, carts, coupons, and customer-facing reviews are not part of the current data model — the API currently focuses on catalog/content management. These may be added in a future iteration.
+### Slug lookups  
+
+The public site addresses content by **slug**, not ObjectId — its URLs are Arabic
+(`/خدمات/أفلام-حماية-ppf`, `/{post-slug}`). Every resource the frontend resolves by URL
+therefore exposes a slug route alongside `/:id`:
+
+| Method & Path | Purpose |
+|---|---|
+| `GET /api/v1/services/slug/:slug` | Service detail page |
+| `GET /api/v1/blog-posts/slug/:slug` | Blog post (posts live at the site root) |
+| `GET /api/v1/products/slug/:slug` | Product page |
+| `GET /api/v1/categories/slug/:slug` | Category archive; also resolves slug → id for filters |
+| `GET /api/v1/packages/slug/:slug` | Offer detail |
+
+Slugs preserve Arabic. They are derived from the title unless the admin supplies one
+explicitly, and a rename does **not** re-slug an existing document — that would silently
+break every inbound link. Collisions get a `-2`, `-3` suffix. See `utils/buildSlugify.js`.
+
+### CMS page sections
+
+Content that belongs to a *page* rather than to a catalog entity. The five singletons are
+one document each, created on first read so a fresh install never 404s the public site.
+
+| Resource | Method & Path | Access |
+|---|---|---|
+| Homepage | `GET /api/v1/home` | Public |
+| Homepage | `PUT /api/v1/home` | Admin |
+| Promo popup | `GET /api/v1/promo` | Public — returns `null` when the campaign is off |
+| Promo popup | `GET /api/v1/promo/admin`, `PUT /api/v1/promo` | Admin |
+| Offers page | `GET /api/v1/offers-page`, `PUT /api/v1/offers-page` | Public / Admin |
+| Blog intro | `GET /api/v1/blog-intro`, `PUT /api/v1/blog-intro` | Public / Admin |
+| Gallery intro | `GET /api/v1/gallery-intro`, `PUT /api/v1/gallery-intro` | Public / Admin |
+| Warranty | `GET /api/v1/warranty`, `GET /api/v1/warranty/:id` | Public |
+| Warranty | `POST/PUT/DELETE /api/v1/warranty[/:id]` | Admin |
+| Reviews | `GET /api/v1/reviews`, `GET /api/v1/reviews/:id` | Public |
+| Reviews | `POST/PUT/DELETE /api/v1/reviews[/:id]` | Admin |
+
+Singleton `PUT` bodies use **dotted paths** (`hero.ctaLabel`, `socialLinks.facebook`), which
+Mongo applies as nested updates — so patching one block never rewrites its siblings and two
+admins editing different sections cannot clobber each other.
+
+`GET /api/v1/categories?withCounts=true` adds a `count` of published items per category,
+which the blog and shop sidebars print.
+
+### Named image slots
+
+`POST`/`PUT /api/v1/services` accept images as **named** multipart fields —
+`heroImage`, `wideImage`, `gridImage`, and `collage` (up to 3) — rather than one
+anonymous array. The service detail page has four differently-shaped containers, so
+"index 2" is not a meaningful identity for the wide banner; naming the slots is what stops
+a re-ordered upload from reshuffling the page. The homepage takes `heroVideo`,
+`heroPoster`, `whyUsImage`, `branchesTileImage`, `galleryTileImage` and `trustImage0..2`.
+Only slots actually present in a request are touched. See `utils/slotUpload.js`.
+
+> Note: bookings, orders, carts, coupons, and customer-facing text reviews are not part of
+> the current data model — the API focuses on catalog/content management. These may be
+> added in a future iteration.
 
 ### Example: Admin Login
 
@@ -280,8 +336,9 @@ Create a `.env` file in the project root (never commit this file).
 | `npm start` | Start the server in production mode |
 | `npm run dev` | Start the server with `nodemon`, auto-restarting on file changes |
 | `npm run seed` | Run the database seed script manually |
-| `npm test` | Run the test suite with coverage (Jest) |
+| `npm test` | Run the integration test suite |
 | `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Run tests with coverage |
 | `npm run lint` | Lint the codebase with ESLint |
 
 ---
@@ -305,6 +362,30 @@ docker compose exec 3mMile-app node scripts/seed.js
 ```
 
 Automatic run on container start: set `RUN_DB_SEED=true` — `start.sh` will run the seed automatically before starting the server. **Recommended for local/dev/staging only.** In production, run the seed manually, once, with real admin credentials — never leave `RUN_DB_SEED=true` enabled in production.
+
+---
+
+## Testing
+
+```bash
+npm test
+```
+
+24 integration tests over the real Express app and a **real MongoDB**, on a throwaway
+database named `<your-db>_test` which is dropped before and after the run. A local
+`mongod` therefore has to be reachable — the same one the app already uses.
+
+Two deliberate deviations from what the devDependencies suggest:
+
+- **`node --test`, not Jest.** The package is pure ESM. Jest's module runtime still loads
+  CommonJS dependencies with its own `require`, and `sanitize-html` (CJS) depends on
+  `htmlparser2` v10 (ESM-only) — so the suite died with *"Must use import to load ES
+  Module"* before a single test ran. Node 24 resolves that combination natively.
+- **Real MongoDB, not `mongodb-memory-server`.** That package downloads a server binary on
+  first use, which fails on a machine without network access.
+
+No test uploads a file, so the suite never touches the real Cloudinary account; image
+handling is asserted on the shape of the stored slots instead.
 
 ---
 

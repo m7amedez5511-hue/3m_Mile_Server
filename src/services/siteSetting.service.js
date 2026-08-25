@@ -7,6 +7,9 @@ const settingCrud = crudService('SiteSetting');
 // whitelist of fields allowed to be updated directly by the client (aboutImage handled separately via uploadedFile).
 // dotted keys are passed as-is to Mongo, which natively supports dot-notation updates on nested paths.
 const UPDATABLE_FIELDS = [
+  'siteName', 'siteNameFull', 'tagline', 'description', 'siteUrl', 'workingHours',
+  'mapsEmbedId', 'logo.alt', 'logo.width', 'logo.height',
+  'rating.score', 'rating.reviewCount',
   'aboutTitle', 'aboutDescription', 'aboutFeatures', 'warrantyPolicy',
   'contactPhone', 'contactEmail', 'whatsappNumber',
   'stats.experienceYears', 'stats.clientsCount', 'stats.teamMembersCount',
@@ -32,12 +35,22 @@ export const updateSiteSettings = async (req) => {
   for (const field of UPDATABLE_FIELDS) {
     if (req.body[field] !== undefined) data[field] = req.body[field];
   }
-  //3 if a new about-section image was uploaded, replace it and delete the old one from Cloudinary
-  if (req.uploadedFile) {
-    data.aboutImage = req.uploadedFile.url;
-    data.aboutImagePublicId = req.uploadedFile.publicId;
-    if (existing.aboutImagePublicId) {
-      safeDeleteCloudinaryImage(existing.aboutImagePublicId, { resource: 'SiteSetting', id: existing._id, reason: 'replaced_on_update' });
+  //3 apply uploaded media to its mapped fields, deleting the assets it replaces.
+  //  Named slots rather than a single `req.uploadedFile`, because this document owns
+  //  two independent images (the about-section photo and the site logo) and the admin
+  //  must be able to replace either without touching the other.
+  const slots = {
+    aboutImage: { urlField: 'aboutImage', publicIdField: 'aboutImagePublicId' },
+    logo: { urlField: 'logo.url', publicIdField: 'logo.publicId' },
+  };
+  for (const [name, spec] of Object.entries(slots)) {
+    const uploaded = req.uploadedSlots?.[name];
+    if (!uploaded) continue;
+    data[spec.urlField] = uploaded.url;
+    data[spec.publicIdField] = uploaded.publicId;
+    const previous = name === 'logo' ? existing.logo?.publicId : existing.aboutImagePublicId;
+    if (previous) {
+      safeDeleteCloudinaryImage(previous, { resource: 'SiteSetting', id: existing._id, reason: `${name}_replaced_on_update` });
     }
   }
   //4 update the settings document in the database

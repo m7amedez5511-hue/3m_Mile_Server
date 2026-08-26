@@ -8,7 +8,7 @@ class FileUploadError extends Error {
     constructor(message, statusCode = 400) {
         super(message);
         this.statusCode = statusCode;
-        this.name = 'FileUploadError'; 
+        this.name = 'FileUploadError';
     }
 }
 
@@ -53,7 +53,9 @@ const extractPublicId = (imageUrl) => {
 const allowedMimeTypes = {
     image: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
     document: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-    video: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv']
+    // Browsers send video/quicktime for .mov, video/x-msvideo for .avi and
+    // video/x-ms-wmv for .wmv — the bare `video/mov`/`video/avi` forms never occur.
+    video: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo', 'video/x-ms-wmv']
 };
 
 const fileSizeLimits = {
@@ -158,8 +160,11 @@ export const uploaders = {
 // uploads to the matching gallery folder, and attaches { mediaType, uploadedFile } to req
 export const uploadGalleryMediaToCloudinary = async (req, res, next) => {
     try {
+        // No file is a legitimate request now: a YouTube reel is identified by
+        // `externalId` and has no asset to upload. The service decides whether the
+        // combination it received is valid — this middleware only handles uploads.
         if (!req.file) {
-            return next(new FileUploadError('File is required', 400));
+            return next();
         }
 
         const isImage = allowedMimeTypes.image.includes(req.file.mimetype);
@@ -237,34 +242,33 @@ export const uploadToCloudinary = (folder = 'theshop') => {
     };
 };
 
-// Error handling middleware for multer errors
+/**
+ * Upload errors, normalised onto the API's error envelope: a snake_case code the client
+ * can translate, with the original English prose kept on `details` for the log.
+ */
+const MULTER_CODES = {
+    LIMIT_FILE_SIZE: 'file_too_large',
+    LIMIT_FILE_COUNT: 'too_many_files',
+    LIMIT_UNEXPECTED_FILE: 'unexpected_file_field',
+    LIMIT_PART_COUNT: 'too_many_files',
+    LIMIT_FIELD_COUNT: 'too_many_files',
+};
+
 export const handleMulterError = (err, req, res, next) => {
+    const asCode = (code, status, original, field) => {
+        const error = new FileUploadError(code, status);
+        error.code = code;
+        error.details = [{ field: field || 'file', code: original }];
+        return error;
+    };
+
     if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-                success: false,
-                error: 'File too large. Please upload a smaller file.'
-            });
-        }
-        if (err.code === 'LIMIT_FILE_COUNT') {
-            return res.status(400).json({
-                success: false,
-                error: 'Too many files. Please upload fewer files.'
-            });
-        }
-        if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-            return res.status(400).json({
-                success: false,
-                error: 'Unexpected file field.'
-            });
-        }
+        return next(asCode(MULTER_CODES[err.code] || 'upload_failed', 400, err.message, err.field));
     }
-    
-    if (err instanceof FileUploadError) {
-        return res.status(err.statusCode).json({
-            success: false,
-            error: err.message
-        });
+
+    // A rejected mime type arrives with English prose from createFileFilter/slotUploader.
+    if (err instanceof FileUploadError || err?.name === 'SlotUploadError') {
+        return next(asCode('file_type_not_allowed', err.statusCode || 400, err.message));
     }
 
     next(err);

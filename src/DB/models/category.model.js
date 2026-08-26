@@ -5,7 +5,10 @@ const categorySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    type: { type: String, enum: ['product', 'service'], default: 'product' },
+    // 'blog' added so blog posts can be filed under categories: the frontend serves
+    // /category/{slug} archives, which `tags` alone cannot back.
+    type: { type: String, enum: ['product', 'service', 'blog'], default: 'product' },
+    description: { type: String, default: '' },
     order: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     isDeleted: { type: Boolean, default: false },

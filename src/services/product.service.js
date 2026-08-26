@@ -1,16 +1,20 @@
 import crudService from './crud.service.js';
+import { castObjectId } from '../helpers/db.helper.js';
 import { createAppError } from '../utils/createAppError.js';
 import { safeDeleteCloudinaryImage } from '../utils/softDeleteImage.js';
-import { slugifyFunction } from '../utils/buildSlugify.js';
+import { resolveSlug } from '../utils/buildSlugify.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
 
 const productCrud = crudService('Product');
 
 // whitelist of fields allowed to be updated directly by the client (images handled separately via uploadedFiles)
-const UPDATABLE_FIELDS = [
+const UPDATABLE_FIELDS = ['excerpt', 'shortDescription',
   'name', 'description', 'price', 'compareAtPrice', 'sku',
   'category', 'stock', 'isFeatured', 'isActive',
 ];
+
+/** '' means "unset"; omitting the key means "leave alone". Mongoose CastErrors on ''. */
+const normaliseRef = (value) => (value === '' || value === undefined ? null : value);
 
 // get paginated list of products with optional search/category/isFeatured filter
 export const listProducts = async ({ page = 1, limit = 10, search, category, isFeatured } = {}) => {
@@ -19,7 +23,8 @@ export const listProducts = async ({ page = 1, limit = 10, search, category, isF
   //2 if search filter is provided, add it to the filter object
   if (search) filter.name = { $regex: search, $options: 'i' };
   //3 if category filter is provided, add it to the filter object
-  if (category) filter.category = category;
+  //  (cast to ObjectId — the populated list goes through aggregation $match, which does no casting)
+  if (category) filter.category = castObjectId(category);
   //4 if isFeatured filter is provided, add it to the filter object
   if (isFeatured !== undefined) filter.isFeatured = isFeatured;
   //5 fetch paginated results sorted by createdAt, populating the linked category
@@ -40,11 +45,16 @@ export const getProductById = async (id) => {
 
 // create a new product with optional multi-image upload
 export const createProduct = async (req) => {
-  //1 extract product data from request body
-  const { name, description, price, compareAtPrice, sku, category, stock, isFeatured, isActive } = req.body;
+  //1 extract product data from request body (keep in sync with UPDATABLE_FIELDS)
+  const {
+    name, excerpt, shortDescription, description,
+    price, compareAtPrice, sku, category, stock, isFeatured, isActive,
+  } = req.body;
   const data = {
     name,
-    slug: slugifyFunction(name),
+    slug: await resolveSlug('Product', req.body.slug, name),
+    excerpt,
+    shortDescription,
     description,
     price,
     compareAtPrice: compareAtPrice ?? null,
@@ -79,6 +89,7 @@ export const updateProduct = async (id, req) => {
   for (const field of UPDATABLE_FIELDS) {
     if (req.body[field] !== undefined) data[field] = req.body[field];
   }
+  if (data.category !== undefined) data.category = normaliseRef(data.category);
   //4 resolve the effective price/compareAtPrice (incoming value, falling back to the existing stored value)
   //   and reject the update if the resulting pair is inconsistent (compareAtPrice must exceed price)
   const effectivePrice = data.price !== undefined ? data.price : existing.price;
@@ -87,7 +98,9 @@ export const updateProduct = async (id, req) => {
     throw createAppError(400, 'compare_at_price_must_exceed_price');
   }
   //5 regenerate slug if name is being changed
-  if (data.name) data.slug = slugifyFunction(data.name);
+  if (req.body.slug !== undefined) {
+    data.slug = await resolveSlug('Product', req.body.slug, req.body.name || existing.name, id);
+  }
   //6 if new images were uploaded, replace the array and delete all old images from Cloudinary
   if (req.uploadedFiles?.length) {
     data.images = req.uploadedFiles.map((f) => ({ url: f.url, publicId: f.publicId }));
@@ -123,4 +136,16 @@ export const deleteProduct = async (id, req) => {
   logAudit({ ...actorFromReq(req), action: 'DELETE', resource: 'Product', details: { id } });
   //6 return the result of the soft deletion
   return result;
+};
+
+/** Get a single product by slug — the public site addresses it by slug, not id. */
+export const getProductBySlug = async (slug) => {
+  //1 fetch by slug
+  const doc = await productCrud.findOne({ slug, isDeleted: false }, { populate: [{ path: 'category' }] });
+  //2 if not found, throw a 404 error
+  if (!doc) {
+    throw createAppError(404, 'product_not_found');
+  }
+  //3 return the document
+  return doc;
 };

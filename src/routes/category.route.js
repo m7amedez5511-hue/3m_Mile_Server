@@ -5,6 +5,7 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  getCategoryBySlugHandler
 } from '../controllers/index.js';
 import { isAuthorized } from '../middleware/auth.middleware.js';
 import { restrictTo } from '../middleware/permission.middleware.js';
@@ -15,6 +16,7 @@ const router = Router();
 
 // Public reads
 router.get('/', getCategories);
+router.get('/slug/:slug', getCategoryBySlugHandler);
 router.get('/:id', getCategory);
 
 // Admin-only writes (permissions match scripts/seed.js: category:write / category:delete)

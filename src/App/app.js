@@ -47,6 +47,12 @@ app.use("/public", express.static(path.join(process.cwd(), "public")));
 // Basic Health Check
 app.get("/", (req, res) => res.send("3mMile API Server is running..."));
 
+// Rate limiting — 100 requests per 15 minutes per IP.
+// MUST be mounted BEFORE the routes: Express runs middleware in registration order, so
+// while this sat after the 404 and error handlers it was dead code that no request ever
+// reached. The stricter login limiter on /auth/login was unaffected.
+app.use(apiLimiter);
+
 // API Routes (Includes /docs, /health, /v1/client)
 app.use("/api/v1", routes);
 
@@ -55,6 +61,4 @@ app.use(notFoundHandler);
 
 // Global Error Handler
 app.use(errorHandler);
-//limit requests to 100 per 15 minutes per IP
-app.use(apiLimiter); 
 export default app;

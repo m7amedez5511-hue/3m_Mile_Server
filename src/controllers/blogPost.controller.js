@@ -3,23 +3,32 @@ import { sendResponse } from '../utils/response.js';
 import {
   listBlogPosts,
   getBlogPostById,
+  getBlogPostBySlug,
   createBlogPost as createBlogPostService,
   updateBlogPost as updateBlogPostService,
   deleteBlogPost as deleteBlogPostService,
 } from '../services/blogPost.service.js';
-// get all blog posts with pagination, search, and filter by isPublished
+// get all blog posts with pagination, search, and filter by isPublished/category
 export const getBlogPosts = asyncHandler(async (req, res) => {
-  //1 extract query parameters for pagination, search, and isPublished filter
-  const { page, limit, search, isPublished } = req.query;
+  //1 extract query parameters for pagination, search, and filters
+  const { page, limit, search, isPublished, category } = req.query;
   //2 fetch the paginated list of blog posts using the service function
   const result = await listBlogPosts({
     page: Number(page) || 1,
     limit: Number(limit) || 10,
     search,
     isPublished: isPublished !== undefined ? isPublished === 'true' : undefined,
+    category,
   });
   //3 send the response with the fetched blog posts
   return sendResponse(res, 200, 'blog_posts_fetched', result);
+});
+// get a single blog post by slug — the public site's lookup path
+export const getBlogPostBySlugHandler = asyncHandler(async (req, res) => {
+  //1 fetch the blog post by slug using the service function
+  const post = await getBlogPostBySlug(req.params.slug);
+  //2 send the response with the fetched blog post
+  return sendResponse(res, 200, 'blog_post_fetched', post);
 });
 // get a single blog post by ID
 export const getBlogPost = asyncHandler(async (req, res) => {

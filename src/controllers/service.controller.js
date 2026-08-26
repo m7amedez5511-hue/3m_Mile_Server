@@ -3,6 +3,7 @@ import { sendResponse } from '../utils/response.js';
 import {
   listServices,
   getServiceById,
+  getServiceBySlug,
   createService as createServiceService,
   updateService as updateServiceService,
   deleteService as deleteServiceService,
@@ -11,7 +12,7 @@ import {
 // Controller for fetching a paginated list of services
 export const getServices = asyncHandler(async (req, res) => {
   //1 extract pagination and filter parameters from query
-  const { page, limit, search, category, isFeatured } = req.query;
+  const { page, limit, search, category, isFeatured, isActive } = req.query;
   //2 call the service to get the list of services with pagination and optional filters
   const result = await listServices({
     page: Number(page) || 1,
@@ -19,9 +20,18 @@ export const getServices = asyncHandler(async (req, res) => {
     search,
     category,
     isFeatured: isFeatured !== undefined ? isFeatured === 'true' : undefined,
+    isActive: isActive !== undefined ? isActive === 'true' : undefined,
   });
   //3 send success response with the paginated list of services
   return sendResponse(res, 200, 'services_fetched', result);
+});
+
+// Controller for fetching a single service by slug — the public site's lookup path
+export const getServiceBySlugHandler = asyncHandler(async (req, res) => {
+  //1 call the service to get the service by slug
+  const service = await getServiceBySlug(req.params.slug);
+  //2 send success response with the fetched service
+  return sendResponse(res, 200, 'service_fetched', service);
 });
 
 // Controller for fetching a single service by ID

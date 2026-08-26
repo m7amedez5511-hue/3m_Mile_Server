@@ -12,7 +12,6 @@ export const restrictTo = (requiredPermission) => {
     const hasPermission = userPermissions.some(
       (rp) => rp.permission?.slug === requiredPermission
     );
-    console.log('User Permissions:', userPermissions.map(p => p.permission?.slug));
     if (!hasPermission) {
       throw createAppError(403, "user_not_authorized");
     }

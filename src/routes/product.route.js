@@ -5,6 +5,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  getProductBySlugHandler
 } from '../controllers/index.js';
 import { isAuthorized } from '../middleware/auth.middleware.js';
 import { restrictTo } from '../middleware/permission.middleware.js';
@@ -16,6 +17,7 @@ const router = Router();
 
 // Public reads
 router.get('/', getProducts);
+router.get('/slug/:slug', getProductBySlugHandler);
 router.get('/:id', getProduct);
 
 // Admin-only writes

@@ -5,6 +5,12 @@ services:
       - "3000"
     env_file:
       - .env
+    environment:
+      # Pinned so the container always listens on the port `expose`, the Dockerfile and
+      # the nginx upstream all assume. The repo `.env` sets PORT=4000 for LOCAL runs,
+      # because Next.js dev owns 3000 on the developer's machine — without this override
+      # that value would leak into the container and nginx would proxy to a dead port.
+      PORT: 3000
     restart: always
     depends_on:
       mongo:

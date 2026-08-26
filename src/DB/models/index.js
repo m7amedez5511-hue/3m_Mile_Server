@@ -17,3 +17,12 @@ import './partner.model.js';
 import './faq.model.js';
 import './siteSetting.model.js';
 import './auditLog.model.js';
+
+// CMS page-section models — one typed entity per public page section.
+import './homeContent.model.js';
+import './promo.model.js';
+import './offersPage.model.js';
+import './blogIntro.model.js';
+import './galleryIntro.model.js';
+import './warrantyGroup.model.js';
+import './review.model.js';

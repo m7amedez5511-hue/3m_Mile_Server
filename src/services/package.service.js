@@ -1,7 +1,7 @@
 import crudService from './crud.service.js';
 import { createAppError } from '../utils/createAppError.js';
 import { safeDeleteCloudinaryImage } from '../utils/softDeleteImage.js';
-import { slugifyFunction } from '../utils/buildSlugify.js';
+import { resolveSlug } from '../utils/buildSlugify.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
 
 const packageCrud = crudService('Package');
@@ -40,7 +40,7 @@ export const createPackage = async (req) => {
   const { title, description, service, price, discountPercentage, startDate, endDate, order, isActive } = req.body;
   const data = {
     title,
-    slug: slugifyFunction(title),
+    slug: await resolveSlug('Package', req.body.slug, title),
     description,
     service: service || null,
     price: price ?? null,
@@ -76,8 +76,12 @@ export const updatePackage = async (id, req) => {
   for (const field of UPDATABLE_FIELDS) {
     if (req.body[field] !== undefined) data[field] = req.body[field];
   }
+  // '' means "unlink"; omitting the key means "leave alone". Mongoose CastErrors on ''.
+  if (data.service !== undefined) data.service = data.service || null;
   //4 regenerate slug if title is being changed
-  if (data.title) data.slug = slugifyFunction(data.title);
+  if (req.body.slug !== undefined) {
+    data.slug = await resolveSlug('Package', req.body.slug, req.body.title || existing.title, id);
+  }
   //5 if an image was uploaded, add its URL and public ID to the package data, and delete the old image from Cloudinary if it exists
   if (req.uploadedFile) {
     data.image = req.uploadedFile.url;
@@ -115,4 +119,16 @@ export const deletePackage = async (id, req) => {
   logAudit({ ...actorFromReq(req), action: 'DELETE', resource: 'Package', details: { id } });
   //6 return the result of the soft deletion
   return result;
+};
+
+/** Get a single package by slug — the public site addresses it by slug, not id. */
+export const getPackageBySlug = async (slug) => {
+  //1 fetch by slug
+  const doc = await packageCrud.findOne({ slug, isDeleted: false }, { populate: [{ path: 'service' }] });
+  //2 if not found, throw a 404 error
+  if (!doc) {
+    throw createAppError(404, 'package_not_found');
+  }
+  //3 return the document
+  return doc;
 };

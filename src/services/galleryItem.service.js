@@ -1,4 +1,5 @@
 import crudService from './crud.service.js';
+import { castObjectId } from '../helpers/db.helper.js';
 import { createAppError } from '../utils/createAppError.js';
 import { safeDeleteCloudinaryImage } from '../utils/softDeleteImage.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
@@ -8,7 +9,12 @@ const RESOURCE_FOLDER = { image: '3mmile/gallery/images', video: '3mmile/gallery
 const galleryCrud = crudService('GalleryItem');
 
 // whitelist of fields allowed to be updated directly by the client (metadata-only, media file is immutable)
-const UPDATABLE_FIELDS = ['title', 'service', 'order', 'isActive'];
+// `type`, `url` and `publicId` are deliberately absent: the media itself is immutable
+// (replace it by uploading a new file, which the service handles explicitly).
+const UPDATABLE_FIELDS = [
+  'title', 'service', 'order', 'isActive',
+  'description', 'alt', 'href', 'externalId',
+];
 
 // get paginated list of gallery items with optional type/service filter
 export const listGalleryItems = async ({ page = 1, limit = 12, type, service } = {}) => {
@@ -17,7 +23,8 @@ export const listGalleryItems = async ({ page = 1, limit = 12, type, service } =
   //2 if type filter is provided, add it to the filter object
   if (type) filter.type = type;
   //3 if service filter is provided, add it to the filter object
-  if (service) filter.service = service;
+  //  (cast to ObjectId — the populated list goes through aggregation $match, which does no casting)
+  if (service) filter.service = castObjectId(service);
   //4 fetch paginated results sorted by order and createdAt, populating the linked service
  return galleryCrud.findAndCountAll(filter, {
   page, limit,
@@ -43,17 +50,31 @@ export const getGalleryItemById = async (id) => {
 // create a new gallery item (image or video); type is fixed per-route,
 // passed in explicitly rather than trusted from the request body
 export const createGalleryItem = async (req, type) => {
-  //1 the media file is required for both images and videos
-  if (!req.uploadedFile) {
-    throw createAppError(400, 'file_is_required');
+  const { title, service, order, isActive, externalId, description, alt, href } = req.body;
+
+  //1 an item is EITHER an uploaded asset or a YouTube reel. The video gallery embeds
+  //  Shorts rather than self-hosting, so those carry an id and no file.
+  const resolvedType = req.uploadedFile ? type : req.body.type;
+
+  if (!req.uploadedFile && !externalId) {
+    throw createAppError(400, 'file_or_external_id_is_required');
   }
-  //2 extract gallery item data from request body
-  const { title, service, order, isActive } = req.body;
+  //2 a YouTube reel is only meaningful in the video gallery
+  if (!req.uploadedFile && resolvedType !== 'video') {
+    throw createAppError(400, 'external_id_requires_video_type');
+  }
+
+  //3 build the document
   const data = {
     title: title ?? '',
-    type,
-    url: req.uploadedFile.url,
-    publicId: req.uploadedFile.publicId,
+    type: resolvedType,
+    // Left null for reels — the schema requires url/publicId only when externalId is absent.
+    url: req.uploadedFile?.url ?? null,
+    publicId: req.uploadedFile?.publicId ?? null,
+    externalId: externalId ?? '',
+    description: description ?? '',
+    alt: alt ?? '',
+    href: href ?? '',
     service: service || null,
     order: order ?? 0,
     isActive: isActive ?? true,

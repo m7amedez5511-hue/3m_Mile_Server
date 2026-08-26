@@ -22,6 +22,7 @@ const userSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-userSchema.index({ email: 1 });
+// No `userSchema.index({ email: 1 })` — `unique: true` above already declares it, and
+// declaring it twice makes Mongoose warn on every boot.
 
 export default mongoose.models.User || mongoose.model('User', userSchema);

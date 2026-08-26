@@ -6,6 +6,7 @@ import {
   createProduct as createProductService,
   updateProduct as updateProductService,
   deleteProduct as deleteProductService,
+  getProductBySlug,
 } from '../services/product.service.js';
 
 // Controller for fetching a paginated list of products
@@ -54,4 +55,11 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   await deleteProductService(req.params.id, req);
   //2 send success response indicating the product was deleted
   return sendResponse(res, 200, 'product_deleted', null);
+});
+// Controller for fetching a single product by slug — the public site's lookup path
+export const getProductBySlugHandler = asyncHandler(async (req, res) => {
+  //1 call the service to get the product by slug
+  const doc = await getProductBySlug(req.params.slug);
+  //2 send success response with the fetched product
+  return sendResponse(res, 200, 'product_fetched', doc);
 });

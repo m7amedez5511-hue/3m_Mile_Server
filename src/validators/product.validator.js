@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { slugish } from './shared.validator.js';
 
 // multipart/form-data always arrives as strings, so booleans are coerced
 const booleanish = z
@@ -20,11 +21,16 @@ const compareAtPriceAbovePrice = (data, ctx) => {
 
 const baseProductSchema = z.object({
   name: z.string().min(2).max(200),
+  // The admin owns the URL — see resolveSlug in utils/buildSlugify.js.
+  slug: slugish.optional(),
+  excerpt: z.string().max(500).optional(),
+  shortDescription: z.string().max(2000).optional(),
   description: z.string().optional(),
-  price: z.coerce.number().min(0),
+  price: z.coerce.number().min(0).optional(),
   compareAtPrice: z.coerce.number().min(0).optional(),
   sku: z.string().optional(),
-  category: z.string().length(24).optional(),
+  // '' unsets the category; the service maps it to null (`normaliseRef`).
+  category: z.string().length(24).optional().or(z.literal('')),
   stock: z.coerce.number().int().min(0).optional(),
   isFeatured: booleanish,
   isActive: booleanish,

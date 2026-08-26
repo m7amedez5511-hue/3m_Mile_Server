@@ -6,6 +6,7 @@ import {
   createPackage as createPackageService,
   updatePackage as updatePackageService,
   deletePackage as deletePackageService,
+  getPackageBySlug,
 } from '../services/package.service.js';
 
 // Controller for fetching a paginated list of packages
@@ -52,4 +53,11 @@ export const deletePackage = asyncHandler(async (req, res) => {
   await deletePackageService(req.params.id, req);
   //2 send success response indicating the package was deleted
   return sendResponse(res, 200, 'package_deleted', null);
+});
+// Controller for fetching a single package by slug — the public site's lookup path
+export const getPackageBySlugHandler = asyncHandler(async (req, res) => {
+  //1 call the service to get the package by slug
+  const doc = await getPackageBySlug(req.params.slug);
+  //2 send success response with the fetched package
+  return sendResponse(res, 200, 'package_fetched', doc);
 });

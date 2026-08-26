@@ -32,15 +32,18 @@ router.post(
   createGalleryItem,
 );
 
-// Admin-only update — metadata-only, media file is immutable.
-// you must replece video to video and image to image, not vice versa. If you want to change the type, delete and re-upload.
+// Admin-only update — metadata plus optional media replacement.
+// The service itself uploads the replacement and deletes the old asset
+// (replaceCloudinaryMedia), so no upload middleware here: adding
+// uploadGalleryMediaToCloudinary would upload the same file twice and
+// orphan the first copy. Same-type replacement only (image→image,
+// video→video); to change the type, delete and re-create.
 router.put(
   '/:id',
   isAuthorized,
   restrictTo('gallery:write'),
   uploaders.galleryMedia.single('file'),
   handleMulterError,
-  uploadGalleryMediaToCloudinary, // optional, only if a new file is uploaded
   validate(updateGalleryItemSchema),
   updateGalleryItem,
 );

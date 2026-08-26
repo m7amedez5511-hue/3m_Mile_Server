@@ -1,8 +1,5 @@
 import { z } from 'zod';
 import sanitizeHtml from 'sanitize-html';
-// NOTE: this package is not in the files you uploaded, install it with:
-//   npm install sanitize-html
-// It's the missing piece for #5 (stored XSS via `content`).
 
 const booleanish = z
   .union([z.boolean(), z.enum(['true', 'false'])])
@@ -33,9 +30,18 @@ const sanitizeContent = (html) =>
 
 export const createBlogPostSchema = z.object({
   title: z.string().min(2).max(200),
+  // The admin owns the URL: renaming a post's title must not be able to break its
+  // inbound links. Letters/numbers in any script, because the site's URLs are Arabic.
+  slug: z.string().trim().max(200).regex(/^[\p{L}\p{N}-]*$/u, 'slug may contain only letters, numbers and hyphens').optional(),
   excerpt: z.string().max(300).optional(),
   content: z.string().min(1).transform(sanitizeContent),
   tags: tagsish,
+  // Category ObjectIds. Sent as a real array from JSON, or comma-separated from a form.
+  categories: z
+    .union([z.array(z.string().length(24)), z.string()])
+    .transform((v) => (Array.isArray(v) ? v : v.split(',').map((c) => c.trim()).filter(Boolean)))
+    .optional(),
+  coverImageAlt: z.string().max(300).optional(),
   isPublished: booleanish,
 });
 

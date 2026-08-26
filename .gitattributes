@@ -1,0 +1,20 @@
+# Ensure shell scripts always use LF line endings, even on Windows
+*.sh text eol=lf
+
+# Common text files - normalize line endings
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+
+# Prevent Git from mangling binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary

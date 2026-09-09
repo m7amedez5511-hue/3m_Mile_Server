@@ -42,6 +42,18 @@ const siteSettingSchema = new mongoose.Schema(
 
     warrantyPolicy: { type: String, default: '' }, // warranty policy text on the homepage
 
+    // admin-editable page intro/heading copy for pages that otherwise hardcode
+    // this text. Grouped as a subdocument (matching the `rating`/`stats` style here)
+    // because the admin group these belong to («نصوص الصفحات») addresses them as one
+    // related set, not as scattered top-level settings fields.
+    pageCopy: {
+      servicesIntro: { type: String, default: '' }, // ServicesPage.tsx intro paragraph
+      branchesHeading: { type: String, default: '' }, // BranchesPage.tsx heading
+      branchesSub: { type: String, default: '' }, // BranchesPage.tsx heading subline
+      shopIntro: { type: String, default: '' }, // ShopPage.tsx intro paragraph
+      photoGalleryCta: { type: String, default: '' }, // PhotoGalleryPage.tsx CTA button label
+    },
+
     contactPhone: { type: String, default: '' },
     contactEmail: { type: String, default: '' },
     whatsappNumber: { type: String, default: '' },
@@ -56,6 +68,10 @@ const siteSettingSchema = new mongoose.Schema(
     },
     // Empty strings are filtered out by the frontend rather than rendered as dead
     // links, so retiring a social account means clearing the field, not deleting it.
+
+    // Exactly one document may exist. The unique index makes the singleton service's
+    // upsert atomic — without it, concurrent first reads each inserted their own copy.
+    singletonKey: { type: String, default: 'main', unique: true, immutable: true },
   },
   { timestamps: true }
 );

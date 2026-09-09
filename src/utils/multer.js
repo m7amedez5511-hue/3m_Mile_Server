@@ -91,7 +91,13 @@ export function createUploader(options = {}) {
         fileFilter: fileFilter,
         limits: {
             fileSize: fileSizeLimit,
-            files: maxFiles
+            files: maxFiles,
+            // Multer defaults `fields`/`parts` to Infinity, so an unbounded number of
+            // text parts is buffered into req.body before validation runs.
+            fields: 64,
+            parts: maxFiles + 64,
+            fieldNameSize: 200,
+            fieldSize: 64 * 1024
         }
     });
 }
@@ -220,7 +226,7 @@ export const uploadToCloudinary = (folder = 'theshop') => {
                     resource_type: 'auto'
                 });
                 
-                logger.debug(`File uploaded successfully: ${result.public_id}`);
+                logger.debug(`File uploaded successfully: ${result.publicId}`);
                 return result;
             });
 

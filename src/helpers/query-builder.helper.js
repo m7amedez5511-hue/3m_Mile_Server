@@ -1,6 +1,4 @@
-
 import mongoose from 'mongoose';
-import { logger } from '../utils/winston.js';
 const ObjectId = mongoose.Types.ObjectId;
 
 const toUTCDate = (val) => {

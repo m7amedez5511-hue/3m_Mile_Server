@@ -1,11 +1,10 @@
 import crudService from './crud.service.js';
 import { castObjectId } from '../helpers/db.helper.js';
 import { createAppError } from '../utils/createAppError.js';
-import { deleteImage as deleteCloudinaryImage } from '../utils/Cloudinary.config.js';
 import { resolveSlug } from '../utils/buildSlugify.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
-import { logger } from '../utils/winston.js';
 import { safeDeleteCloudinaryImage } from '../utils/softDeleteImage.js';
+import { buildSearchRegex } from '../utils/searchFilter.js';
 
 const blogPostCrud = crudService('BlogPost');
 
@@ -24,7 +23,10 @@ const POPULATE = [
 export const listBlogPosts = async ({ page = 1, limit = 10, search, isPublished, category } = {}) => {
   //1 build filter object
   const filter = { isDeleted: false };
-  if (search) filter.title = { $regex: search, $options: 'i' };
+  if (search) {
+    const titleSearch = buildSearchRegex(search);
+    if (titleSearch) filter.title = titleSearch;
+  }
   if (isPublished !== undefined) filter.isPublished = isPublished;
   //2 category archives are addressed by ObjectId; the frontend resolves the slug to an
   //  id first via /categories/slug/:slug
@@ -95,6 +97,11 @@ export const createBlogPost = async (req) => {
       width: req.uploadedFile.width ?? null,
       height: req.uploadedFile.height ?? null,
     };
+  } else if (req.body.coverImageAlt !== undefined) {
+    // Alt text with no image uploaded in this request. Without this the field
+    // was accepted and dropped, so alt written on the create form never
+    // survived unless a cover image happened to be attached at the same time.
+    data.coverImage = { alt: req.body.coverImageAlt };
   }
   //3 create the blog post and log audit
   const post = await blogPostCrud.create(data);
@@ -137,7 +144,7 @@ export const updateBlogPost = async (id, req) => {
     if (existing.coverImage?.imagePublicId) {
       await safeDeleteCloudinaryImage(existing.coverImage.imagePublicId, { id, action: 'UPDATE' });
     }
-  } else if (req.body.coverImageAlt !== undefined && existing.coverImage?.url) {
+  } else if (req.body.coverImageAlt !== undefined) {
     // Alt text without a new upload — a dotted patch, leaving the rest of the slot alone.
     data['coverImage.alt'] = req.body.coverImageAlt;
   }

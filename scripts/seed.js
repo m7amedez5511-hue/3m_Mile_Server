@@ -25,7 +25,7 @@ const run = async () => {
     console.log('Admin role created with full permission set.');
   }
   //4. Create the Admin user if it doesn't exist, or reuse it if it does.
-  const email = process.env.SEED_ADMIN_EMAIL || 'super.admin@3m.mile.com';
+  const email = process.env.SEED_ADMIN_EMAIL;
   const existing = await User.findOne({ email });
   //5. If the admin user exists but has no role, attach the role to it.
   if (existing) {
@@ -37,7 +37,7 @@ const run = async () => {
     }
   } else {
     //6. Create the admin user with a default password if it doesn't exist.
-    const password = process.env.SEED_ADMIN_PASSWORD || '3mMile2026@';
+    const password = process.env.SEED_ADMIN_PASSWORD;
     // Hash the password before saving it to the database.
     const hashed = await bcrypt.hash(password, 12);
     await User.create({

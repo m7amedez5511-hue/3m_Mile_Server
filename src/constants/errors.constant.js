@@ -11,7 +11,11 @@ export const ERROR_TYPES = {
   NotFoundError: 404,          // Resource not found
   ConflictError: 409,          // Duplicate resource
   ZodError: 400,               // Zod validation error
-  ValidationError: 400         // Mongoose/General validation error
+  ValidationError: 400,        // Mongoose/General validation error
+  // A malformed ObjectId is a BAD REQUEST, not a server fault. Without this
+  // mapping getErrorStatus() fell through to 500 on every `:id` route given a
+  // non-ObjectId, even though getErrorCode() already had a CastError branch.
+  CastError: 400
 };
 
 // Default messages based on status code

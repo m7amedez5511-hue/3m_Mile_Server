@@ -54,7 +54,12 @@ const formatMongooseErrors = (error) => {
  */
 const getErrorStatus = (error) => {
   // Check for validation errors first
-  if (error.isJoi || error.name === 'ZodError' || error.name === 'ValidationError') {
+  if (
+    error.isJoi ||
+    error.name === 'ZodError' ||
+    error.name === 'ValidationError' ||
+    error.name === 'CastError'
+  ) {
     return 400;
   }
 
@@ -195,9 +200,21 @@ const getFriendlyMessage = (error, status) => {
     return 'Authentication token expired. Please log in again.';
   }
 
+  // Mongoose CastError messages embed the model name and schema path; CastError
+  // now maps to 400, so the generic passthrough below would disclose them.
+  if (error.name === 'CastError') {
+    return 'Invalid resource identifier.';
+  }
+
   if (error.message) {
-    if (!isDevelopment && status === 500) {
-      return 'An internal server error occurred.';
+    // Masking is keyed on `isOperational`, not on status: 4xx errors from third
+    // parties (Cloudinary upload failures surface at 400) would otherwise return
+    // provider internals verbatim. `error.code` is untouched, so clients keep
+    // their machine-readable contract.
+    if (!isDevelopment && (status >= 500 || !error.isOperational)) {
+      return status >= 500
+        ? 'An internal server error occurred.'
+        : defaultMessages[status] || 'An error occurred';
     }
     return error.message;
   }
@@ -222,7 +239,8 @@ const logError = (error, req, status) => {
     message: error.message,
     name: error.name,
     code: error.code,
-    user: req.user?.id || 'anonymous',
+    // `req.user` comes from a .lean() query: `_id` only, no `id` virtual.
+    user: req.user?.id || req.user?._id || 'anonymous',
     ip: req.ip || req.connection.remoteAddress
   };
 

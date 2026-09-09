@@ -1,6 +1,8 @@
+import mongoose from 'mongoose';
 import crudService from './crud.service.js';
 import { safeDeleteCloudinaryImage } from '../utils/softDeleteImage.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
+import { getOrCreateSingleton } from '../utils/singletonUpsert.js';
 
 /**
  * Factory for page-section singletons — HomeContent, Promo, OffersPage, BlogIntro,
@@ -25,30 +27,27 @@ const getPath = (obj, path) => path.split('.').reduce((acc, key) => (acc == null
  * @param {string[]} config.updatableFields  whitelist; dotted paths allowed — Mongo
  *   applies them natively as nested updates, so 'hero.ctaLabel' patches one field
  *   without rewriting the whole `hero` object.
- * @param {Record<string, {urlField: string, publicIdField: string, resourceType?: string}>} [config.imageSlots]
+ * @param {Record<string, {urlField: string, publicIdField: string, resourceType?: string, widthField?: string, heightField?: string}>} [config.imageSlots]
  *   maps an upload field name to the document paths that store its URL and publicId.
  */
 export const singletonService = (modelName, { updatableFields, imageSlots = {} }) => {
   const crud = crudService(modelName);
 
-  /** Fetch the singleton, creating an empty one on first read. */
-  const get = async () => {
-    const { record } = await crud.findOrCreate({}, {});
-    return record;
-  };
+  /** Fetch the singleton, creating an empty one on first read. See singletonUpsert.js. */
+  const get = () => getOrCreateSingleton(mongoose.model(modelName));
 
   const update = async (req) => {
-    //1 fetch the existing document (creating it if this is the first write)
+    // fetch the existing document (creating it if this is the first write)
     const existing = await get();
 
-    //2 build the update from a strict whitelist — prevents mass assignment of _id,
+    // build the update from a strict whitelist — prevents mass assignment of _id,
     //  publicId fields, and anything else not explicitly editable
     const data = {};
     for (const field of updatableFields) {
       if (req.body[field] !== undefined) data[field] = req.body[field];
     }
 
-    //3 apply uploaded media to its mapped paths, queueing the replaced assets for
+    // apply uploaded media to its mapped paths, queueing the replaced assets for
     //  deletion. Only fields actually uploaded are touched.
     const slots = req.uploadedSlots || {};
     for (const [slotName, spec] of Object.entries(imageSlots)) {
@@ -58,6 +57,10 @@ export const singletonService = (modelName, { updatableFields, imageSlots = {} }
       const file = Array.isArray(uploaded) ? uploaded[0] : uploaded;
       data[spec.urlField] = file.url;
       data[spec.publicIdField] = file.publicId;
+
+      // upload result from ever writing `undefined` over a previously-stored value.
+      if (spec.widthField && typeof file.width === 'number') data[spec.widthField] = file.width;
+      if (spec.heightField && typeof file.height === 'number') data[spec.heightField] = file.height;
 
       const previous = getPath(existing, spec.publicIdField);
       if (previous) {

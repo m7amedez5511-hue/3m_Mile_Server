@@ -1,8 +1,6 @@
 import crudService from './crud.service.js';
 import { createAppError } from '../utils/createAppError.js';
 import { buildFullPermissionSet } from '../constants/permissions.constant.js';
-import { logAudit, actorFromReq } from '../utils/auditLogger.js';
-
 const roleCrud = crudService('Role');
 
 // get the (single) role in the system

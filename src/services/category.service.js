@@ -2,6 +2,7 @@ import crudService from './crud.service.js';
 import { createAppError } from '../utils/createAppError.js';
 import { resolveSlug } from '../utils/buildSlugify.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
+import { buildSearchRegex } from '../utils/searchFilter.js';
 
 const categoryCrud = crudService('Category');
 
@@ -48,9 +49,10 @@ const countStages = (type) => {
 export const listCategories = async ({ page = 1, limit = 10, search, type, withCounts } = {}) => {
   //1 build filter object
   const filter = { isDeleted: false };
-  //2 if search filter is provided, add it to the filter object
-  if (search) filter.name = { $regex: search, $options: 'i' };
-  //3 if type filter is provided, add it to the filter object
+  if (search) {
+    const nameSearch = buildSearchRegex(search);
+    if (nameSearch) filter.name = nameSearch;
+  }
   if (type) filter.type = type;
 
   //4 when counts are requested, aggregate instead — findAndCountAll cannot express the
@@ -88,14 +90,18 @@ export const getCategoryById = async (id) => {
 export const createCategory = async (req) => {
   //1 extract category data from request body
   const { name, type, order, isActive } = req.body;
-  const data = {
+  const data = {};
+  for (const field of UPDATABLE_FIELDS) {
+    if (req.body[field] !== undefined) data[field] = req.body[field];
+  }
+
+  Object.assign(data, {
     name,
     slug: await resolveSlug('Category', req.body.slug, name),
     type: type ?? 'product',
     order: order ?? 0,
     isActive: isActive ?? true,
-  };
-  //2 create the category in the database
+  });
   const category = await categoryCrud.create(data);
   //3 log audit for category creation
   logAudit({ ...actorFromReq(req), action: 'CREATE', resource: 'Category', details: { id: category._id, name } });

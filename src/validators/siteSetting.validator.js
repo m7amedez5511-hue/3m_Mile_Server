@@ -11,7 +11,7 @@ export const updateSiteSettingSchema = z.object({
   siteName: z.string().max(150).optional(),
   siteNameFull: z.string().max(200).optional(),
   tagline: z.string().max(300).optional(),
-  description: z.string().max(2000).optional(),
+  description: z.string().max(300).optional(),
   siteUrl: z.string().max(300).optional(),
   workingHours: z.string().max(200).optional(),
   mapsEmbedId: z.string().max(200).optional(),
@@ -21,16 +21,23 @@ export const updateSiteSettingSchema = z.object({
   'rating.score': z.string().max(10).optional(),
   'rating.reviewCount': z.coerce.number().int().min(0).optional(),
 
-  aboutTitle: z.string().optional(),
-  aboutDescription: z.string().optional(),
+  aboutTitle: z.string().max(80).optional(),
+  aboutDescription: z.string().max(2000).optional(),
   aboutFeatures: featuresish,
   warrantyPolicy: z.string().optional(),
-  contactPhone: z.string().optional(),
+
+  'pageCopy.servicesIntro': z.string().max(400).optional(),
+  'pageCopy.branchesHeading': z.string().max(60).optional(),
+  'pageCopy.branchesSub': z.string().max(80).optional(),
+  'pageCopy.shopIntro': z.string().max(400).optional(),
+  'pageCopy.photoGalleryCta': z.string().max(30).optional(),
+
+  contactPhone: z.string().max(40).optional(),
   // `.or(literal(''))` because an admin clearing the field submits an empty string, and
   // a bare .email() would reject it — making the whole Settings form unsaveable whenever
   // no email is set.
   contactEmail: z.string().email().optional().or(z.literal('')),
-  whatsappNumber: z.string().optional(),
+  whatsappNumber: z.string().regex(/^[1-9]\d{9,14}$/).optional().or(z.literal('')),
   'stats.experienceYears': z.coerce.number().int().optional(),
   'stats.clientsCount': z.coerce.number().int().optional(),
   'stats.teamMembersCount': z.coerce.number().int().optional(),

@@ -23,6 +23,10 @@ const UPDATABLE_FIELDS = [
   'stats',
   'reviewsIntro.heading', 'reviewsIntro.description',
   'contactBlock.heading', 'contactBlock.subheading', 'contactBlock.formTitle',
+
+  // No contact heading/subheading pair here; see homeContent.model.js.
+  'sections.partnersHeading', 'sections.partnersSub', 'sections.latestPostsHeading',
+  'sections.ctaLabel',
 ];
 
 /**
@@ -33,8 +37,17 @@ const UPDATABLE_FIELDS = [
  * hand below instead.
  */
 const IMAGE_SLOTS = {
-  heroVideo: { urlField: 'hero.video', publicIdField: 'hero.videoPublicId', resourceType: 'video' },
+  // hero.width/height are the video's intrinsic dimensions (see the model comment) —
+  // only heroVideo writes them; heroPoster shares the same `hero` object but has no
+  // dimension pair of its own.
+  heroVideo: {
+    urlField: 'hero.video', publicIdField: 'hero.videoPublicId', resourceType: 'video',
+    widthField: 'hero.width', heightField: 'hero.height',
+  },
   heroPoster: { urlField: 'hero.poster', publicIdField: 'hero.posterPublicId' },
+  // whyUsImage/branchesTileImage/galleryTileImage reuse the shared `image` sub-schema
+  // (url/publicId/alt only — see homeContent.model.js) which has no width/height
+  // fields. Adding them is out of scope for this task;.
   whyUsImage: { urlField: 'whyUs.image.url', publicIdField: 'whyUs.image.publicId' },
   branchesTileImage: { urlField: 'heroTiles.branches.image.url', publicIdField: 'heroTiles.branches.image.publicId' },
   galleryTileImage: { urlField: 'heroTiles.gallery.image.url', publicIdField: 'heroTiles.gallery.image.publicId' },
@@ -71,9 +84,14 @@ export const updateHomeContent = async (req) => {
         icon: item.icon ?? '',
         // A text-only edit must not wipe the badge image, so fall back to what is
         // already stored whenever nothing new was uploaded for this index.
+        //
+        // The no-upload branch used to write `previous` back verbatim, which
+        // also reverted the admin's newly typed alt text: they edited "وصف
+        // الصورة", saw the save succeed, and the old value returned on reload.
+        // Keep the stored url/publicId, but let `item.alt` win when supplied.
         image: upload
           ? { url: upload.url, publicId: upload.publicId, alt: item.alt ?? previous?.alt ?? '' }
-          : previous || {},
+          : { ...(previous || {}), alt: item.alt ?? previous?.alt ?? '' },
       };
     });
   }

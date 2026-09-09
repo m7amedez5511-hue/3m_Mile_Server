@@ -94,6 +94,17 @@ const homeContentSchema = new mongoose.Schema(
       subheading: { type: String, default: '' },
       formTitle: { type: String, default: '' },
     },
+
+    sections: {
+      partnersHeading: { type: String, default: '' },
+      partnersSub: { type: String, default: '' },
+      latestPostsHeading: { type: String, default: '' },
+      ctaLabel: { type: String, default: '' },
+    },
+
+    // Exactly one document may exist. The unique index makes the singleton service's
+    // upsert atomic — without it, concurrent first reads each inserted their own copy.
+    singletonKey: { type: String, default: 'main', unique: true, immutable: true },
   },
   { timestamps: true }
 );

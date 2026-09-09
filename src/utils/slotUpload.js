@@ -44,7 +44,17 @@ export const slotUploader = (slots, fileSizeLimit = 10 * 1024 * 1024) => {
 
   return multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: fileSizeLimit, files: slots.reduce((n, s) => n + (s.maxCount || 1), 0) },
+    limits: {
+      fileSize: fileSizeLimit,
+      files: slots.reduce((n, s) => n + (s.maxCount || 1), 0),
+      // See the matching block in utils/multer.js: without these, `fields` and
+      // `parts` default to Infinity and an unbounded number of text parts is
+      // buffered into req.body before validation.
+      fields: 128,
+      parts: slots.reduce((n, s) => n + (s.maxCount || 1), 0) + 128,
+      fieldNameSize: 200,
+      fieldSize: 256 * 1024,
+    },
     fileFilter: (req, file, cb) => {
       const allowed = allowedByField.get(file.fieldname) ?? IMAGE_MIME;
       if (allowed.includes(file.mimetype)) return cb(null, true);
@@ -70,7 +80,7 @@ export const uploadSlotsToCloudinary = (folder, slots) => async (req, res, next)
         public_id: `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
         resource_type: 'auto',
       });
-      return { url: result.url, publicId: result.publicId };
+      return { url: result.url, publicId: result.publicId, width: result.width, height: result.height };
     };
 
     const uploaded = {};

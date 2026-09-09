@@ -2,6 +2,7 @@ import crudService from './crud.service.js';
 import { createAppError } from '../utils/createAppError.js';
 import { safeDeleteCloudinaryImage } from '../utils/softDeleteImage.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
+import { buildSearchRegex } from '../utils/searchFilter.js';
 
 const branchCrud = crudService('Branch');
 
@@ -18,9 +19,10 @@ const UPDATABLE_FIELDS = [
 export const listBranches = async ({ page = 1, limit = 10, city } = {}) => {
   //1 build filter object
   const filter = { isDeleted: false };
-  //2 if city filter is provided, add it to the filter object
-  if (city) filter.city = { $regex: city, $options: 'i' };
-  //3 fetch paginated results sorted by order and createdAt
+  if (city) {
+    const citySearch = buildSearchRegex(city);
+    if (citySearch) filter.city = citySearch;
+  }
   return branchCrud.findAndCountAll(filter, { page, limit, sort: { order: 1, createdAt: -1 } });
 };
 

@@ -20,6 +20,10 @@ const promoSchema = new mongoose.Schema(
     // Delay in ms before the overlay appears.
     delayMs: { type: Number, default: 3000 },
     isActive: { type: Boolean, default: false },
+
+    // Exactly one document may exist. The unique index makes the singleton service's
+    // upsert atomic — without it, concurrent first reads each inserted their own copy.
+    singletonKey: { type: String, default: 'main', unique: true, immutable: true },
   },
   { timestamps: true }
 );

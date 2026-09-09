@@ -1,5 +1,5 @@
 import winston from 'winston';
-const { combine, timestamp, printf, json, prettyPrint, errors } = winston.format;
+const { combine, timestamp, json, prettyPrint, errors } = winston.format;
 import winstonRotate from 'winston-daily-rotate-file';
 
 export const consoleLogger = winston.createLogger({

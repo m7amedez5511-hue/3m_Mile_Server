@@ -13,7 +13,30 @@ export const shutdown = async (label = "app", server = null) => {
   console.log(`[${label}] Shutting down — closing connections...`);
 
   if (server) {
-    await new Promise((resolve) => server.close(resolve));
+    // `server.close()` stops accepting new sockets but does NOT resolve while
+    // any socket is still open — including IDLE keep-alive sockets. nginx holds
+    // exactly those (`keepalive 32`), so this hung indefinitely on every deploy
+    // until Docker's SIGKILL, which meant mongoose.disconnect() below never ran.
+    await new Promise((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+
+      server.close(done);
+
+      // Release sockets that are sitting idle between requests.
+      server.closeIdleConnections?.();
+
+      const forceTimer = setTimeout(() => {
+        console.warn(`[${label}] Connections still open after 5s — forcing close.`);
+        server.closeAllConnections?.();
+        done();
+      }, 5_000);
+      forceTimer.unref();
+    });
   }
 
   if (mongoose.connection.readyState !== 0) {

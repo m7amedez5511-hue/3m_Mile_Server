@@ -1,6 +1,6 @@
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { sendResponse } from '../utils/response.js';
-import { loginUser } from '../services/auth.service.js';
+import { loginUser, refreshAccessToken } from '../services/auth.service.js';
 // Controller for user login
 export const login = asyncHandler(async (req, res) => {
   //1 validate request body and perform login
@@ -8,6 +8,9 @@ export const login = asyncHandler(async (req, res) => {
   //2 send success response with user info and tokens
   return sendResponse(res, 200, 'login_successful', { user, accessToken, refreshToken });
 });
+// Controller for exchanging a refresh token for a new access token
+export const refresh = asyncHandler(async (req, res) =>
+  sendResponse(res, 200, 'token_refreshed', await refreshAccessToken(req.body)));
 // Controller for getting current logged-in user info
 export const me = asyncHandler(async (req, res) => {
   //1 send success response with current user info

@@ -14,6 +14,10 @@ const offersPageSchema = new mongoose.Schema(
     intro: { type: String, default: '' },
     formHeading: { type: String, default: '' },
     formSubheading: { type: String, default: '' },
+
+    // Exactly one document may exist. The unique index makes the singleton service's
+    // upsert atomic — without it, concurrent first reads each inserted their own copy.
+    singletonKey: { type: String, default: 'main', unique: true, immutable: true },
   },
   { timestamps: true }
 );

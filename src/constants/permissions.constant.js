@@ -5,6 +5,7 @@
  * partial-permission role in this system.
  */
 export const PERMISSIONS = [
+  { slug: 'user:read', name: 'View users' },
   { slug: 'user:write', name: 'Manage users' },
   { slug: 'user:delete', name: 'Delete users' },
   { slug: 'role:write', name: 'Manage roles' },

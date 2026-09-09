@@ -12,7 +12,7 @@ import { jsonish, numberish } from './shared.validator.js';
  */
 export const updateHomeContentSchema = z
   .object({
-    'hero.ctaLabel': z.string().max(120).optional(),
+    'hero.ctaLabel': z.string().max(20).optional(),
     'hero.ctaText': z.string().max(300).optional(),
     'hero.width': numberish.int().positive().optional(),
     'hero.height': numberish.int().positive().optional(),
@@ -33,40 +33,46 @@ export const updateHomeContentSchema = z
       ).max(4),
     ).optional(),
 
-    'whyUs.heading': z.string().max(300).optional(),
-    'whyUs.description': z.string().max(2000).optional(),
-    'whyUs.points': jsonish(z.array(z.string().max(500)).max(20)).optional(),
-    'whyUs.ctaLabel': z.string().max(120).optional(),
+    'whyUs.heading': z.string().max(40).optional(),
+    'whyUs.description': z.string().max(300).optional(),
+    'whyUs.points': jsonish(z.array(z.string().max(70)).max(20)).optional(),
+    'whyUs.ctaLabel': z.string().max(20).optional(),
     'whyUs.image.alt': z.string().max(300).optional(),
 
     // Exactly the three badges the design has room for.
     trust: jsonish(
       z.array(
         z.object({
-          head: z.string().max(120).default(''),
-          sub: z.string().max(120).default(''),
+          head: z.string().max(20).default(''),
+          sub: z.string().max(40).default(''),
           icon: z.string().max(60).default(''),
           alt: z.string().max(300).optional(),
         }),
-      ).max(3),
+      ).min(3).max(3),
     ).optional(),
 
+    // Exactly the three figures the stats bar has room for.
     stats: jsonish(
       z.array(
         z.object({
           value: z.coerce.number().default(0),
-          suffix: z.string().max(10).default(''),
-          title: z.string().max(120).default(''),
+          suffix: z.string().max(6).default(''),
+          title: z.string().max(16).default(''),
         }),
-      ).max(6),
+      ).min(3).max(3),
     ).optional(),
 
-    'reviewsIntro.heading': z.string().max(300).optional(),
-    'reviewsIntro.description': z.string().max(2000).optional(),
+    'reviewsIntro.heading': z.string().max(30).optional(),
+    'reviewsIntro.description': z.string().max(80).optional(),
 
-    'contactBlock.heading': z.string().max(300).optional(),
-    'contactBlock.subheading': z.string().max(500).optional(),
-    'contactBlock.formTitle': z.string().max(120).optional(),
+    'contactBlock.heading': z.string().max(30).optional(),
+    'contactBlock.subheading': z.string().max(80).optional(),
+    'contactBlock.formTitle': z.string().max(20).optional(),
+
+    'sections.partnersHeading': z.string().max(30).optional(),
+    'sections.partnersSub': z.string().max(80).optional(),
+    'sections.latestPostsHeading': z.string().max(30).optional(),
+    'sections.ctaLabel': z.string().max(20).optional(),
   })
   // Alt-text fields for indexed trust uploads are carried inside the `trust` array
   // itself, so anything else in the body is dropped rather than silently persisted.

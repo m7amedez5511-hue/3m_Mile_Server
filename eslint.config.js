@@ -24,6 +24,23 @@ export default [
     },
   },
   {
+    // Jest test files: the runner injects describe/it/expect and friends.
+    files: ['src/tests/**/*.test.js'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        setImmediate: 'readonly',
+      },
+    },
+  },
+  {
     ignores: ['node_modules/', 'logs/', 'coverage/'],
   },
 ];

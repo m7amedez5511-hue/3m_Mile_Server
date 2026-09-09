@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import createError from 'http-errors';
 import pLimit from 'p-limit';
 import { logger } from '../utils/winston.js';
+import { createAppError } from '../utils/createAppError.js';
 import {
   buildPopulateOptions,
   convertFilterToMatch,
@@ -10,10 +11,67 @@ import {
   buildLookupStages,
 } from '../helpers/db.helper.js';
 
+/** Hard ceiling on rows per query, so `?limit=1000000` cannot exhaust memory. */
+const MAX_LIMIT = 200;
+
+/** Normalise page/limit/skip from untrusted query input: MongoDB rejects a negative
+ *  skip, and NaN (`?page=abc`) propagates silently. */
+const normalizePaging = (options = {}) => {
+  const rawLimit =
+    options.limit === undefined || options.limit === null || options.limit === ''
+      ? 0
+      : Number.parseInt(options.limit, 10);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_LIMIT) : 0;
+
+  const rawPage = Number.parseInt(options.page, 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+
+  let skip;
+  if (limit && options.page !== undefined && options.page !== null && options.page !== '') {
+    skip = (page - 1) * limit;
+  } else {
+    const rawSkip = Number.parseInt(options.skip ?? options.offset ?? 0, 10);
+    skip = Number.isFinite(rawSkip) ? rawSkip : 0;
+  }
+
+  return { page, limit, skip: Math.max(0, skip) };
+};
+
 /**
- * Generic CRUD service factory for any Mongoose model.
- * Usage: const productCrud = crudService('Product');
+ * Convert a Mongoose `select` string into an aggregation `$project`.
+ * A `-field` prefix means exclude in Mongoose but include in `$project`, and Mongo
+ * forbids mixing inclusion and exclusion in one projection.
  */
+const buildProjection = (selectStr) => {
+  const fields = String(selectStr).split(/\s+/).map((f) => f.trim()).filter(Boolean);
+  if (!fields.length) return null;
+
+  const exclusions = fields.filter((f) => f.startsWith('-')).map((f) => f.slice(1));
+  const inclusions = fields.filter((f) => !f.startsWith('-'));
+
+  if (exclusions.length && inclusions.length) {
+    throw createError(500, 'select cannot mix inclusion and exclusion fields');
+  }
+
+  const projection = {};
+  if (exclusions.length) exclusions.forEach((f) => { projection[f] = 0; });
+  else inclusions.forEach((f) => { projection[f] = 1; });
+  return projection;
+};
+
+/**
+ * Preserve errors that already carry accurate HTTP semantics: `createError(500, err)`
+ * mutates its argument, stamping status 500 onto CastError/ValidationError/duplicate-key
+ * errors that errorHandler would otherwise classify as 400/409.
+ */
+const MEANINGFUL_ERRORS = new Set(['CastError', 'ValidationError', 'ZodError']);
+const wrapError = (error) => {
+  if (error && (error.isOperational || error.status || error.statusCode)) return error;
+  if (error && (MEANINGFUL_ERRORS.has(error.name) || error.code === 11000)) return error;
+  return createError(500, error);
+};
+
+/** Generic CRUD service factory: `crudService('Product')`. */
 const crudService = (modelName) => {
   const getModel = () => {
     try {
@@ -23,12 +81,16 @@ const crudService = (modelName) => {
     }
   };
 
-  // Defined as a plain object so every method can safely reference
-  // sibling methods via `api.xxx` instead of relying on `this` binding.
+  // Plain object so methods can call siblings via `api.xxx` without `this` binding.
   const api = {
     findByPk: async (pk, options = {}) => {
       try {
         const Model = getModel();
+        // rather than null/404, so a malformed id answers the same way here as on
+        // routes that query findById directly.
+        if (!mongoose.isValidObjectId(pk)) {
+          throw createAppError(400, 'invalid_resource_id');
+        }
         if (options.populate || options.relations) {
           const lookupStages = buildLookupStages(options.populate || options.relations, Model);
           const pipeline = [
@@ -40,7 +102,7 @@ const crudService = (modelName) => {
         }
         return await Model.findById(pk).exec();
       } catch (err) {
-        throw createError(500, err);
+        throw wrapError(err);
       }
     },
 
@@ -56,7 +118,7 @@ const crudService = (modelName) => {
         }
         return await Model.findOne(mongoFilter, null, { ...options, lean: true }).exec();
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -77,9 +139,7 @@ const crudService = (modelName) => {
             pipeline.push({ $sort: sortObj });
           }
 
-          const page = parseInt(options.page || 1);
-          const limit = options.limit ? parseInt(options.limit) : 0;
-          const skip = limit ? (page - 1) * limit : parseInt(options.skip || options.offset || 0);
+          const { limit, skip } = normalizePaging(options);
 
           const rowsPipeline = [
             ...(skip > 0 ? [{ $skip: skip }] : []),
@@ -91,11 +151,8 @@ const crudService = (modelName) => {
             const selectStr =
               options.select ||
               (Array.isArray(options.attributes) ? options.attributes.join(' ') : options.attributes);
-            const projection = {};
-            selectStr.split(/\s+/).forEach((f) => {
-              if (f.trim()) projection[f] = 1;
-            });
-            rowsPipeline.push({ $project: projection });
+            const projection = buildProjection(selectStr);
+            if (projection) rowsPipeline.push({ $project: projection });
           }
 
           pipeline.push(...rowsPipeline);
@@ -119,17 +176,13 @@ const crudService = (modelName) => {
           query = query.sort(options.sort || convertOrderToSort(options.order));
         }
 
-        if (options.skip || options.offset) {
-          query = query.skip(parseInt(options.skip || options.offset));
-        }
-
-        if (options.limit) {
-          query = query.limit(parseInt(options.limit));
-        }
+        const { limit: findAllLimit, skip: findAllSkip } = normalizePaging(options);
+        if (findAllSkip > 0) query = query.skip(findAllSkip);
+        if (findAllLimit > 0) query = query.limit(findAllLimit);
 
         return await query.exec();
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -147,9 +200,7 @@ const crudService = (modelName) => {
             pipeline.push({ $sort: options.sort || convertOrderToSort(options.order) });
           }
 
-          const page = parseInt(options.page || 1);
-          const limit = options.limit ? parseInt(options.limit) : 0;
-          const skip = limit ? (page - 1) * limit : parseInt(options.skip || options.offset || 0);
+          const { limit, skip } = normalizePaging(options);
 
           const rowsPipeline = [
             ...(skip > 0 ? [{ $skip: skip }] : []),
@@ -161,11 +212,8 @@ const crudService = (modelName) => {
             const selectStr =
               options.select ||
               (Array.isArray(options.attributes) ? options.attributes.join(' ') : options.attributes);
-            const projection = {};
-            selectStr.split(/\s+/).forEach((f) => {
-              if (f.trim()) projection[f] = 1;
-            });
-            rowsPipeline.push({ $project: projection });
+            const projection = buildProjection(selectStr);
+            if (projection) rowsPipeline.push({ $project: projection });
           }
 
           pipeline.push({
@@ -197,14 +245,9 @@ const crudService = (modelName) => {
           query = query.sort(options.sort || convertOrderToSort(options.order));
         }
 
-        if (options.limit) {
-          const limitNum = parseInt(options.limit);
-          query = query.limit(limitNum);
-          let skip = 0;
-          if (options.page) skip = (parseInt(options.page) - 1) * limitNum;
-          else if (options.skip || options.offset) skip = parseInt(options.skip || options.offset);
-          query = query.skip(skip);
-        }
+        const { limit: pagedLimit, skip: pagedSkip } = normalizePaging(options);
+        if (pagedLimit > 0) query = query.limit(pagedLimit);
+        if (pagedSkip > 0) query = query.skip(pagedSkip);
 
         if (options.populate || options.relations) {
           const populateOptions = buildPopulateOptions(options.populate || options.relations);
@@ -218,7 +261,7 @@ const crudService = (modelName) => {
 
         return { count, rows, total: count, data: rows };
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -234,7 +277,7 @@ const crudService = (modelName) => {
         }
         return { record, created, document: record, isNew: created };
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -243,7 +286,6 @@ const crudService = (modelName) => {
         const Model = getModel();
         const mongoFilter = convertFilterToMatch(filter);
         const { populate, relations, ...restOptions } = options;
-        // `returnDocument: 'after'` replaces the deprecated `new: true`; identical behaviour.
         const mongoOptions = { returnDocument: 'after', runValidators: true, upsert: restOptions.upsert || false, ...restOptions };
         const result = await Model.findOneAndUpdate(mongoFilter, updateData, mongoOptions).lean();
         if (!result || !(populate || relations)) return result;
@@ -252,7 +294,7 @@ const crudService = (modelName) => {
         const populated = await Model.aggregate(pipeline);
         return populated[0] || result;
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -261,7 +303,7 @@ const crudService = (modelName) => {
         const Model = getModel();
         return await Model.findOneAndDelete(convertFilterToMatch(filter), options).lean();
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -271,7 +313,7 @@ const crudService = (modelName) => {
         const mongoOptions = { returnDocument: 'after', runValidators: true, ...options };
         return await Model.findOneAndReplace(convertFilterToMatch(filter), replacement, mongoOptions).lean();
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -285,7 +327,7 @@ const crudService = (modelName) => {
         const [doc] = await Model.create([dataModel], options);
         return doc;
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -375,7 +417,7 @@ const crudService = (modelName) => {
         }
         return insertedDocs;
       } catch (err) {
-        throw createError(500, err);
+        throw wrapError(err);
       }
     },
 
@@ -394,7 +436,7 @@ const crudService = (modelName) => {
           affectedRows: result.modifiedCount,
         };
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -403,7 +445,7 @@ const crudService = (modelName) => {
         const Model = getModel();
         return await Model.countDocuments(convertFilterToMatch(filter), options);
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -415,7 +457,7 @@ const crudService = (modelName) => {
         });
         return { deletedCount: result.modifiedCount, acknowledged: result.acknowledged };
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -437,7 +479,7 @@ const crudService = (modelName) => {
         const result = await Model.deleteMany(mongoFilter, options);
         return { deletedCount: result.deletedCount, acknowledged: result.acknowledged, affectedRows: result.deletedCount };
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -447,7 +489,7 @@ const crudService = (modelName) => {
         const result = await Model.deleteMany(convertFilterToMatch(filter), options);
         return { deletedCount: result.deletedCount, acknowledged: result.acknowledged, affectedRows: result.deletedCount };
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -456,7 +498,7 @@ const crudService = (modelName) => {
         const Model = getModel();
         return await Model.distinct(field, convertFilterToMatch(filter), options);
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -465,7 +507,7 @@ const crudService = (modelName) => {
         const Model = getModel();
         return !!(await Model.exists(convertFilterToMatch(filter), options));
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
@@ -474,11 +516,10 @@ const crudService = (modelName) => {
         const Model = getModel();
         return await Model.bulkWrite(operations, options);
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
 
-    // Fixed: reference `api` directly instead of relying on `this` binding
     createWithTransaction: async (dataModel, session) => api.create(dataModel, session),
     updateWithTransaction: async (updateData, filter, session) => api.update(updateData, filter, { session }),
     destroyWithTransaction: async (filter, session) => api.destroy(filter, { session }),
@@ -488,7 +529,7 @@ const crudService = (modelName) => {
         const Model = getModel();
         return await Model.aggregate(pipeline, options);
       } catch (error) {
-        throw createError(500, error);
+        throw wrapError(error);
       }
     },
   };

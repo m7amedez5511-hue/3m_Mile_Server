@@ -4,7 +4,7 @@ import { singletonService } from './singleton.service.js';
 const base = singletonService('Promo', {
   updatableFields: ['alt', 'width', 'height', 'whatsappText', 'delayMs', 'isActive'],
   imageSlots: {
-    image: { urlField: 'image', publicIdField: 'imagePublicId' },
+    image: { urlField: 'image', publicIdField: 'imagePublicId', widthField: 'width', heightField: 'height' },
   },
 });
 

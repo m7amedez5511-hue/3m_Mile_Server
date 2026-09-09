@@ -22,19 +22,19 @@ export const updatePromoSchema = z.object({
 export const updateOffersPageSchema = z.object({
   bannerAlt: z.string().max(300).optional(),
   intro: z.string().max(4000).optional(),
-  formHeading: z.string().max(300).optional(),
-  formSubheading: z.string().max(500).optional(),
+  formHeading: z.string().max(30).optional(),
+  formSubheading: z.string().max(80).optional(),
 }).strip();
 
 export const updateBlogIntroSchema = z.object({
-  heading: z.string().max(300).optional(),
-  description: z.string().max(2000).optional(),
+  heading: z.string().max(30).optional(),
+  description: z.string().max(80).optional(),
   imageAlt: z.string().max(300).optional(),
 }).strip();
 
 export const updateGalleryIntroSchema = z.object({
-  'video.heading': z.string().max(300).optional(),
-  'video.description': z.string().max(2000).optional(),
-  'photo.heading': z.string().max(300).optional(),
-  'photo.description': z.string().max(2000).optional(),
+  'video.heading': z.string().max(30).optional(),
+  'video.description': z.string().max(80).optional(),
+  'photo.heading': z.string().max(30).optional(),
+  'photo.description': z.string().max(80).optional(),
 }).strip();

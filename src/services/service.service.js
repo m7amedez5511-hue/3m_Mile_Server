@@ -5,6 +5,7 @@ import { safeDeleteCloudinaryImage } from '../utils/softDeleteImage.js';
 import { resolveSlug } from '../utils/buildSlugify.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
 import { SERVICE_SLOTS } from '../utils/slotUpload.js';
+import { buildSearchRegex } from '../utils/searchFilter.js';
 
 const serviceCrud = crudService('Service');
 
@@ -64,10 +65,12 @@ const ownedPublicIds = (doc) => [
 export const listServices = async ({ page = 1, limit = 10, search, category, isFeatured, isActive } = {}) => {
   //1 build filter object
   const filter = { isDeleted: false };
-  //2 if search filter is provided, add it to the filter object
-  if (search) filter.title = { $regex: search, $options: 'i' };
-  //3 if category filter is provided, add it to the filter object
-  //  (cast to ObjectId — the populated list goes through aggregation $match, which does no casting)
+  if (search) {
+    const titleSearch = buildSearchRegex(search);
+    if (titleSearch) filter.title = titleSearch;
+  }
+  // Cast to ObjectId: the populated list goes through aggregation $match, which does
+  // no casting of its own.
   if (category) filter.category = castObjectId(category);
   //4 if isFeatured filter is provided, add it to the filter object
   if (isFeatured !== undefined) filter.isFeatured = isFeatured;
@@ -116,7 +119,14 @@ export const createService = async (req) => {
   data.category = req.body.category || null;
   //3 attach any uploaded images to their named slots
   applySlots(data, req, null, null);
-  //4 create the service in the database
+  // alt text for a slot with no upload in this request. applySlots only
+  //  writes alt alongside an uploaded file, so alt typed on the create form
+  //  for a slot the admin had not yet filled was discarded outright.
+  for (const name of SINGLE_SLOTS) {
+    const alt = req.body?.[`${name}Alt`];
+    if (alt === undefined || data[name] !== undefined) continue;
+    data[name] = { alt };
+  }
   const service = await serviceCrud.create(data);
   //5 log audit for service creation
   logAudit({ ...actorFromReq(req), action: 'CREATE', resource: 'Service', details: { id: service._id, title: data.title } });
@@ -150,7 +160,10 @@ export const updateService = async (id, req) => {
   for (const name of SINGLE_SLOTS) {
     const alt = req.body?.[`${name}Alt`];
     if (alt === undefined || data[name] !== undefined) continue;
-    if (!existing?.[name]?.url) continue;
+    // No `existing[name].url` check: alt text used to be discarded whenever the
+    // slot held no image yet, so an admin who wrote the alt text before
+    // uploading the picture lost it with no warning. A dotted patch creates the
+    // parent object on its own, so this is safe on an empty slot.
     data[`${name}.alt`] = alt;
   }
   //5b legacy PUT /:id/gallery route — an unnamed array of images landing in the old

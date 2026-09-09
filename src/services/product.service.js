@@ -4,6 +4,7 @@ import { createAppError } from '../utils/createAppError.js';
 import { safeDeleteCloudinaryImage } from '../utils/softDeleteImage.js';
 import { resolveSlug } from '../utils/buildSlugify.js';
 import { logAudit, actorFromReq } from '../utils/auditLogger.js';
+import { buildSearchRegex } from '../utils/searchFilter.js';
 
 const productCrud = crudService('Product');
 
@@ -20,10 +21,12 @@ const normaliseRef = (value) => (value === '' || value === undefined ? null : va
 export const listProducts = async ({ page = 1, limit = 10, search, category, isFeatured } = {}) => {
   //1 build filter object
   const filter = { isDeleted: false };
-  //2 if search filter is provided, add it to the filter object
-  if (search) filter.name = { $regex: search, $options: 'i' };
-  //3 if category filter is provided, add it to the filter object
-  //  (cast to ObjectId — the populated list goes through aggregation $match, which does no casting)
+  if (search) {
+    const nameSearch = buildSearchRegex(search);
+    if (nameSearch) filter.name = nameSearch;
+  }
+  // Cast to ObjectId: the populated list goes through aggregation $match, which does
+  // no casting of its own.
   if (category) filter.category = castObjectId(category);
   //4 if isFeatured filter is provided, add it to the filter object
   if (isFeatured !== undefined) filter.isFeatured = isFeatured;

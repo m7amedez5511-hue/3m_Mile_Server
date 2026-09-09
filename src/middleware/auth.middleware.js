@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { asyncHandler } from "./errorHandler.js";
 import { verifyJwt } from "../utils/jwt.utils.js";
 import { getUser } from "../services/user.service.js";
@@ -31,7 +32,15 @@ export const isAuthorized = asyncHandler(async (req, res, next) => {
     throw createAppError(401, "Unauthorized");
   }
 
-  // 4. Find and validate user
+  // 4. Find and validate user.
+  // The `aud` claim is attacker-influenced data as far as this layer is
+  // concerned, so it must be shape-checked before reaching findById(): a
+  // non-ObjectId value raised a Mongoose CastError that surfaced as a 500
+  // (with a logged stack trace) instead of a 401.
+  if (!mongoose.isValidObjectId(decodedToken.aud)) {
+    throw createAppError(401, "Unauthorized");
+  }
+
   const user = await getUser(decodedToken.aud, true);
 
   // If user not found, token is invalid

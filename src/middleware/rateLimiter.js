@@ -1,15 +1,15 @@
-//import rateLimit from 'express-rate-limit';
-//import { sendResponse } from '../utils/response.js';
+import rateLimit from 'express-rate-limit';
 
 /**
  * Shared handler so every limiter returns the same
  * standardized error shape as the rest of the API.
  */
-// const rateLimitHandler = (req, res /*, next, options */) => {
-//   return sendResponse(res, 429, 'too_many_requests', {
-//     retryAfterSeconds: Math.ceil(req.rateLimit.resetTime ? (req.rateLimit.resetTime - Date.now()) / 1000 : 60),
-//   });
-// };
+const rateLimitHandler = (req, res) => {
+	res.status(429).json({
+		success: false,
+		message: 'Too many requests. Please try again later.',
+	});
+};
 
 /**
  * General-purpose limiter for the whole API.
@@ -17,13 +17,13 @@
  * but stops scripted abuse (scraping, brute-force probing, etc.).
  * Mount this once, globally, in app.js.
  */
-// export const apiLimiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutes
-//   limit: 300, // 300 requests per IP per window
-//   standardHeaders: true, // adds RateLimit-* response headers
-//   legacyHeaders: false, // disables the deprecated X-RateLimit-* headers
-//   handler: rateLimitHandler,
-// });
+export const apiLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000,
+	limit: 300,
+	standardHeaders: true,
+	legacyHeaders: false,
+	handler: rateLimitHandler,
+});
 
 /**
  * Strict limiter for authentication endpoints only.

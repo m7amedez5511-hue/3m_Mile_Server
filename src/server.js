@@ -5,7 +5,7 @@ import app from "./App/app.js";
 import { registerGracefulShutdown } from "./lib/lifecycle.js";
 import connectMongoDB from "./DB/connection/db_connection.js";
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number.parseInt(process.env.PORT || "5000", 10);
 
 const startServer = () => {
   const server = app.listen(PORT, () => {
@@ -25,10 +25,6 @@ process.on("unhandledRejection", (reason) => {
   console.error("Unhandled rejection:", reason);
   process.exit(1);
 });
-
-console.log(`NODE_ENV=${process.env.NODE_ENV || "undefined"}`);
-console.log(`PORT=${PORT}`);
-console.log(`MONGODB_URI=${process.env.MONGODB_URI ? "[set]" : "[missing]"}`);
 
 connectMongoDB()
   .then(() => {

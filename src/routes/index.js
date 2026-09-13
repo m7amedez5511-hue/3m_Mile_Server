@@ -22,9 +22,9 @@ import warrantyGroupRoutes from './warrantyGroup.route.js';
 import reviewRoutes from './review.route.js';
 const router = Router();
 
-// Health check (matched by nginx location /api/health)
+// Keep the versioned probe for existing clients; /health is the canonical probe.
 router.get('/health', (req, res) => {
-  res.status(200).json({ success: true, message: 'ok', responseAt: new Date() });
+  res.status(200).json({ status: 'ok' });
 });
 
 router.use('/auth', authRoutes);

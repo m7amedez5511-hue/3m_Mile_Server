@@ -1,9 +1,9 @@
 # Rendered by the official nginx image entrypoint (envsubst).
-# API_SERVER_NAME — e.g. 3mMile.slash.sa (prod) or localhost (dev)
+# API_SERVER_NAME — api.3mmile.io in production, localhost in development
 # API_UPSTREAM_HOST — e.g. 3mMile-app
 
 upstream 3mMile_api {
-    server ${API_UPSTREAM_HOST}:3000;
+    server ${API_UPSTREAM_HOST}:5000;
     keepalive 32;
 }
 

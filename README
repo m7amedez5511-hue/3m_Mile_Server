@@ -143,7 +143,7 @@ docker-compose.prod.yaml       → Production overrides
    npm start       # production mode
    ```
 
-The API is available at `http://localhost:3000/api/v1`, with a health check at `http://localhost:3000/api/v1/health`.
+The API is available at `http://localhost:5000/api/v1`, with a health check at `http://localhost:5000/health`.
 
 ### Running with Docker (recommended)
 
@@ -179,7 +179,7 @@ All routes are mounted under `/api/v1`. There is no public registration endpoint
 |---|---|---|
 | Auth | `POST /api/v1/auth/login` | Public (rate-limited) |
 | Auth | `GET /api/v1/auth/me` | Authenticated |
-| Health | `GET /api/v1/health` | Public |
+| Health | `GET /health` | Public |
 | Categories | `GET /api/v1/categories`, `GET /api/v1/categories/:id` | Public |
 | Categories | `POST /api/v1/categories`, `PUT /api/v1/categories/:id`, `DELETE /api/v1/categories/:id` | Admin |
 | Services | `GET /api/v1/services`, `GET /api/v1/services/:id` | Public |

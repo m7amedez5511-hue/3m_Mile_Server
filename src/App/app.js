@@ -6,7 +6,7 @@ import { helmetMiddleware } from "../utils/security.js";
 import { initCloudinary } from "../utils/Cloudinary.config.js";
 import routes from "../routes/index.js";
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler.js";
-// import { apiLimiter } from "../middleware/rateLimiter.js";
+import { apiLimiter } from "../middleware/rateLimiter.js";
 import dotenv  from "dotenv";
 dotenv.config()
 const app = express();
@@ -29,15 +29,22 @@ if (isDevelopment) {
 // Security & Basic Config
 app.use(helmetMiddleware);
 
-const corsOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean)
-  : undefined;
+const corsOrigins = (process.env.CORS_ORIGIN || "https://app.3mmile.io")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   cors(
-    corsOrigins?.length
-      ? { origin: corsOrigins, credentials: true }
-      : undefined,
+    {
+      origin: (origin, callback) => {
+        if (!origin || corsOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        return callback(new Error("Origin is not allowed by CORS"));
+      },
+      credentials: true,
+    },
   ),
 );
 app.use(express.json({ limit: "10mb" }));
@@ -45,13 +52,14 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/public", express.static(path.join(process.cwd(), "public")));
 
 // Basic Health Check
+app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
 app.get("/", (req, res) => res.send("3mMile API Server is running..."));
 
 // Rate limiting — 100 requests per 15 minutes per IP.
 // MUST be mounted BEFORE the routes: Express runs middleware in registration order, so
 // while this sat after the 404 and error handlers it was dead code that no request ever
 // reached. The stricter login limiter on /auth/login was unaffected.
-// app.use(apiLimiter);
+app.use("/api/v1", apiLimiter);
 
 // API Routes (Includes /docs, /health, /v1/client)
 app.use("/api/v1", routes);

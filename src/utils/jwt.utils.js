@@ -17,7 +17,7 @@ export const decodeJWT = (token) => {
 export const signJwt = (userId, secretKey, issuer = null, params = null) => {
   return new Promise((resolve, reject) => {
     const payload = params || {};
-    const secret = process.env[secretKey];
+    const secret = process.env[secretKey] || process.env.JWT_SECRET;
     const options = {
       expiresIn:
         secretKey == "ACCESS_TOKEN_SECRET"
@@ -43,7 +43,7 @@ export const signJwt = (userId, secretKey, issuer = null, params = null) => {
 
 export const verifyJwt = async (token, secretKey) => {
   try {
-    const decodedToken = JWT.verify(token, process.env[secretKey]);
+    const decodedToken = JWT.verify(token, process.env[secretKey] || process.env.JWT_SECRET);
     return {
       valid: true,
       expired: false,

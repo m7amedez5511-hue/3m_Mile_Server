@@ -10,7 +10,7 @@
 #
 # server {
 #     listen 443 ssl http2;
-#     server_name 3mMile.slash.sa;
+#     server_name api.3mmile.io;
 #
 #     ssl_certificate     /etc/nginx/ssl/fullchain.pem;
 #     ssl_certificate_key /etc/nginx/ssl/privkey.pem;

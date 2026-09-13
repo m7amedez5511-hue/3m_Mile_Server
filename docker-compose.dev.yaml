@@ -10,7 +10,7 @@ services:
       context: .
       target: development
     ports:
-      - "3001:3000"
+      - "3001:5000"
     depends_on:
       mongo:
         condition: service_healthy
@@ -18,7 +18,7 @@ services:
         condition: service_started
     environment:
       - RUN_DB_SEED=true
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:8080}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173,http://localhost:3000,http://localhost:8080}
       - API_SERVER_NAME=${API_SERVER_NAME:-localhost}
 
   nginx:
